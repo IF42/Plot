@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -pedantic -std=c2x -Ofast $$(pkg-config --cflags gtk4)
-LIBS= $$(pkg-config --libs gtk4)
+CFLAGS=-Wall -Wextra -pedantic -std=c2x -Ofast $$(pkg-config --cflags gtk+-3.0)
+LIBS= $$(pkg-config --libs gtk+-3.0)
 
 
 ifeq ($(UNAME), Linux)
@@ -13,11 +13,11 @@ endif
 INCLUDE_PATH=/usr/include/
 LIB_PATH=/usr/lib64/
 
-TARGET=libplotter.a
+TARGET=libpgtkplot.a
 CACHE=.cache
 OUTPUT=$(CACHE)/release
 
-MODULES += plotter.o
+MODULES += gtk_plot.o
 TEST += test.o
 
 

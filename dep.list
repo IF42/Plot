@@ -1,2 +1,2 @@
-.cache/test.o: test/test.c test/../src/plotter.h
-.cache/plotter.o: src/plotter.c src/plotter.h
+.cache/test.o: test/test.c test/../src/gtk_plot.h
+.cache/gtk_plot.o: src/gtk_plot.c src/gtk_plot.h
