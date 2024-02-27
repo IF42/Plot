@@ -1,5 +1,7 @@
 # Prerequisites
 *.d
+*.swp
+*.png
 
 # Object files
 *.o
