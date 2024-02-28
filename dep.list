@@ -1,3 +1,2 @@
-.cache/test.o: test/test.c test/../src/plot.h test/../src/supportLib.h
+.cache/test.o: test/test.c test/../src/plot.h
 .cache/plot.o: src/plot.c src/plot.h
-.cache/supportLib.o: src/supportLib.c src/supportLib.h

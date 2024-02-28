@@ -1,5 +1,15 @@
 #include "plot.h"
+
 #include <stdio.h>
+#include <ctype.h>
+
+
+static inline void aSwapElementsOfNumberArray(double *A, double ai, double bi){
+    double tmp = A[(int)(ai)];
+
+    A[(int)(ai)] = A[(int)(bi)];
+    A[(int)(bi)] = tmp;
+}
 
 
 void WriteToFile(ByteArray *data, char *filename) {
@@ -9,16 +19,15 @@ void WriteToFile(ByteArray *data, char *filename) {
 }
 
 
-bool 
-Loess(
-	double *xs
-	, size_t xsLength
-	, double *ys
-	, size_t ysLength
-	, double bandwidth
-	, double robustnessIters
-	, double accuracy
-	, NumberArrayReference *resultXs)
+bool Loess(
+        double *xs
+        , size_t xsLength
+        , double *ys
+        , size_t ysLength
+        , double bandwidth
+        , double robustnessIters
+        , double accuracy
+        , NumberArrayReference *resultXs)
 {
 	double *weights;
 	size_t weightsLength;
@@ -41,8 +50,37 @@ Loess(
 }
 
 
-bool 
-Lowess(
+double Truncate(double x){
+  double t;
+
+  if(x >= 0.0){
+    t = floor(x);
+  }else{
+    t = ceil(x);
+  }
+
+  return t;
+}
+
+
+static void RearrangeArray(double *as, size_t asLength, double *indexes, size_t indexesLength){
+  double *bs;
+  size_t bsLength;
+  double i;
+
+  bs = (double*)calloc(sizeof(double) * ((double)asLength), 1);
+  bsLength = (double)asLength;
+
+  AssignNumberArray(bs, bsLength, as, asLength);
+
+  for(i = 0.0; i < (double)indexesLength; i = i + 1.0)
+    as[(int)(i)] = bs[(int)(indexes[(int)(i)])];
+
+  free(bs);
+}
+
+
+bool Lowess(
 	double *xs
 	, size_t xsLength
 	, double *ys
@@ -220,22 +258,8 @@ Lowess(
 
   return success;
 }
-void RearrangeArray(double *as, size_t asLength, double *indexes, size_t indexesLength){
-  double *bs;
-  size_t bsLength;
-  double i;
 
-  bs = (double*)calloc(sizeof(double) * ((double)asLength), 1);
-  bsLength = (double)asLength;
 
-  AssignNumberArray(bs, bsLength, as, asLength);
-
-  for(i = 0.0; i < (double)indexesLength; i = i + 1.0){
-    as[(int)(i)] = bs[(int)(indexes[(int)(i)])];
-  }
-
-  free(bs);
-}
 void AssignNumberArray(double *as, size_t asLength, double *bs, size_t bsLength){
   double i;
 
@@ -243,6 +267,8 @@ void AssignNumberArray(double *as, size_t asLength, double *bs, size_t bsLength)
     as[(int)(i)] = bs[(int)(i)];
   }
 }
+
+
 double FindNextNonZeroElement(double *array, size_t arrayLength, double offset){
   double position;
   bool done;
@@ -256,6 +282,8 @@ double FindNextNonZeroElement(double *array, size_t arrayLength, double offset){
 
   return position;
 }
+
+
 double Tricube(double x){
   double ax, result;
 
@@ -270,6 +298,8 @@ double Tricube(double x){
 
   return result;
 }
+
+
 bool CropLineWithinBoundary(NumberReference *x1Ref, NumberReference *y1Ref, NumberReference *x2Ref, NumberReference *y2Ref, double xMin, double xMax, double yMin, double yMax){
   double x1, y1, x2, y2;
   bool success, p1In, p2In;
@@ -372,17 +402,8 @@ bool CropLineWithinBoundary(NumberReference *x1Ref, NumberReference *y1Ref, Numb
 
   return success;
 }
-double IncrementFromCoordinates(double x1, double y1, double x2, double y2){
-  return (x2 - x1)/(y2 - y1);
-}
-double InterceptFromCoordinates(double x1, double y1, double x2, double y2){
-  double a, b;
 
-  a = IncrementFromCoordinates(x1, y1, x2, y2);
-  b = y1 - a*x1;
 
-  return b;
-}
 RGBA **Get8HighContrastColors(size_t *returnArrayLength){
   RGBA **colors;
   size_t colorsLength;
@@ -399,12 +420,16 @@ RGBA **Get8HighContrastColors(size_t *returnArrayLength){
   *returnArrayLength = colorsLength;
   return colors;
 }
+
+
 void DrawFilledRectangleWithBorder(RGBABitmapImage *image, double x, double y, double w, double h, RGBA *borderColor, RGBA *fillColor){
   if(h > 0.0 && w > 0.0){
     DrawFilledRectangle(image, x, y, w, h, fillColor);
     DrawRectangle1px(image, x, y, w, h, borderColor);
   }
 }
+
+
 RGBABitmapImageReference *CreateRGBABitmapImageReference(){
   RGBABitmapImageReference *reference;
 
@@ -416,6 +441,8 @@ RGBABitmapImageReference *CreateRGBABitmapImageReference(){
 
   return reference;
 }
+
+
 bool RectanglesOverlap(Rectangle *r1, Rectangle *r2){
   bool overlap;
 
@@ -428,6 +455,8 @@ bool RectanglesOverlap(Rectangle *r1, Rectangle *r2){
 
   return overlap;
 }
+
+
 Rectangle *CreateRectangle(double x1, double y1, double x2, double y2){
   Rectangle *r;
   r = (Rectangle *)calloc(sizeof(Rectangle), 1);
@@ -437,13 +466,17 @@ Rectangle *CreateRectangle(double x1, double y1, double x2, double y2){
   r->y2 = y2;
   return r;
 }
+
+
 void CopyRectangleValues(Rectangle *rd, Rectangle *rs){
   rd->x1 = rs->x1;
   rd->y1 = rs->y1;
   rd->x2 = rs->x2;
   rd->y2 = rs->y2;
 }
-void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, double xPixelMin, double xPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *xGridPositions, size_t xGridPositionsLength, StringArrayReference *xLabels, NumberArrayReference *xLabelPriorities, Rectangle **occupied, size_t occupiedLength, bool textOnBottom){
+
+
+void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, double xPixelMin, double xPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *xGridPositions, size_t xGridPositionsLength, StringArrayReference *xLabels, NumberArrayReference *xLabelPriorities, Rectangle **occupied, bool textOnBottom){
   bool overlap, currentOverlaps;
   double i, j, x, px, padding;
   char *text;
@@ -462,14 +495,14 @@ void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, doubl
       text = xLabels->stringArray[(int)(i)]->string;
       textLength = xLabels->stringArray[(int)(i)]->stringLength;
 
-      r->x1 = floor(px - GetTextWidth(text, textLength)/2.0);
+      r->x1 = floor(px - GetTextWidth(textLength)/2.0);
       if(textOnBottom){
         r->y1 = floor(oy + 5.0);
       }else{
         r->y1 = floor(oy - 20.0);
       }
-      r->x2 = r->x1 + GetTextWidth(text, textLength);
-      r->y2 = r->y1 + GetTextHeight(text, textLength);
+      r->x2 = r->x1 + GetTextWidth(textLength);
+      r->y2 = r->y1 + GetTextHeight;
 
       /* Add padding */
       r->x1 = r->x1 - padding;
@@ -484,7 +517,7 @@ void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, doubl
       }
 
       if( !currentOverlaps  && p == 1.0){
-        DrawText(canvas, r->x1 + padding, r->y1 + padding, text, textLength, gridLabelColor);
+        DrawText(canvas, r->x1 + padding, r->y1 + padding, text, gridLabelColor);
 
         CopyRectangleValues(occupied[(int)(nextRectangle->numberValue)], r);
         nextRectangle->numberValue = nextRectangle->numberValue + 1.0;
@@ -502,16 +535,16 @@ void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, doubl
         text = xLabels->stringArray[(int)(i)]->string;
         textLength = xLabels->stringArray[(int)(i)]->stringLength;
 
-        r->x1 = floor(px - GetTextWidth(text, textLength)/2.0);
+        r->x1 = floor(px - GetTextWidth(textLength)/2.0);
         if(textOnBottom){
           r->y1 = floor(oy + 5.0);
         }else{
           r->y1 = floor(oy - 20.0);
         }
-        r->x2 = r->x1 + GetTextWidth(text, textLength);
-        r->y2 = r->y1 + GetTextHeight(text, textLength);
+        r->x2 = r->x1 + GetTextWidth(textLength);
+        r->y2 = r->y1 + GetTextHeight;
 
-        DrawText(canvas, r->x1, r->y1, text, textLength, gridLabelColor);
+        DrawText(canvas, r->x1, r->y1, text, gridLabelColor);
 
         CopyRectangleValues(occupied[(int)(nextRectangle->numberValue)], r);
         nextRectangle->numberValue = nextRectangle->numberValue + 1.0;
@@ -519,7 +552,9 @@ void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, doubl
     }
   }
 }
-void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, double yPixelMin, double yPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *yGridPositions, size_t yGridPositionsLength, StringArrayReference *yLabels, NumberArrayReference *yLabelPriorities, Rectangle **occupied, size_t occupiedLength, bool textOnLeft){
+
+
+void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, double yPixelMin, double yPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *yGridPositions, size_t yGridPositionsLength, StringArrayReference *yLabels, NumberArrayReference *yLabelPriorities, Rectangle **occupied, bool textOnLeft){
   bool overlap, currentOverlaps;
   double i, j, y, py, padding;
   char *text;
@@ -528,8 +563,8 @@ void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, doubl
 
   r = (Rectangle *)calloc(sizeof(Rectangle), 1);
   padding = 10.0;
-
   overlap = false;
+
   for(i = 0.0; i < (double)yLabels->stringArrayLength; i = i + 1.0){
     if(yLabelPriorities->numberArray[(int)(i)] == p){
 
@@ -539,13 +574,13 @@ void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, doubl
       textLength = yLabels->stringArray[(int)(i)]->stringLength;
 
       if(textOnLeft){
-        r->x1 = floor(ox - GetTextWidth(text, textLength) - 10.0);
+        r->x1 = floor(ox - GetTextWidth(textLength) - 10.0);
       }else{
         r->x1 = floor(ox + 10.0);
       }
       r->y1 = floor(py - 6.0);
-      r->x2 = r->x1 + GetTextWidth(text, textLength);
-      r->y2 = r->y1 + GetTextHeight(text, textLength);
+      r->x2 = r->x1 + GetTextWidth(textLength);
+      r->y2 = r->y1 + GetTextHeight;
 
       /* Add padding */
       r->x1 = r->x1 - padding;
@@ -561,7 +596,7 @@ void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, doubl
 
       /* Draw labels with priority 1 if they do not overlap anything else. */
       if( !currentOverlaps  && p == 1.0){
-        DrawText(canvas, r->x1 + padding, r->y1 + padding, text, textLength, gridLabelColor);
+        DrawText(canvas, r->x1 + padding, r->y1 + padding, text, gridLabelColor);
 
         CopyRectangleValues(occupied[(int)(nextRectangle->numberValue)], r);
         nextRectangle->numberValue = nextRectangle->numberValue + 1.0;
@@ -580,15 +615,15 @@ void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, doubl
         textLength = yLabels->stringArray[(int)(i)]->stringLength;
 
         if(textOnLeft){
-          r->x1 = floor(ox - GetTextWidth(text, textLength) - 10.0);
+          r->x1 = floor(ox - GetTextWidth(textLength) - 10.0);
         }else{
           r->x1 = floor(ox + 10.0);
         }
         r->y1 = floor(py - 6.0);
-        r->x2 = r->x1 + GetTextWidth(text, textLength);
-        r->y2 = r->y1 + GetTextHeight(text, textLength);
+        r->x2 = r->x1 + GetTextWidth(textLength);
+        r->y2 = r->y1 + GetTextHeight;
 
-        DrawText(canvas, r->x1, r->y1, text, textLength, gridLabelColor);
+        DrawText(canvas, r->x1, r->y1, text, gridLabelColor);
 
         CopyRectangleValues(occupied[(int)(nextRectangle->numberValue)], r);
         nextRectangle->numberValue = nextRectangle->numberValue + 1.0;
@@ -596,6 +631,13 @@ void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, doubl
     }
   }
 }
+
+
+bool EpsilonCompare(double a, double b, double epsilon){
+  return fabs(a - b) < epsilon;
+}
+
+
 double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double cMax, StringArrayReference *labels, NumberArrayReference *priorities){
   double *positions;
   size_t positionsLength;
@@ -608,7 +650,7 @@ double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double 
   /* gives 10-1 lines for 100-10 diff */
   pMin = ceil(cMin/pInterval)*pInterval;
   pMax = floor(cMax/pInterval)*pInterval;
-  pNum = Round((pMax - pMin)/pInterval + 1.0);
+  pNum = round((pMax - pMin)/pInterval + 1.0);
 
   mode = 1.0;
 
@@ -618,7 +660,7 @@ double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double 
     pInterval = pow(10.0, p);
     pMin = ceil(cMin/pInterval)*pInterval;
     pMax = floor(cMax/pInterval)*pInterval;
-    pNum = Round((pMax - pMin)/pInterval + 1.0);
+    pNum = round((pMax - pMin)/pInterval + 1.0);
 
     mode = 4.0;
   }else if(pNum <= 6.0){
@@ -627,7 +669,7 @@ double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double 
     /* gives 40-5 lines for 100-10 diff */
     pMin = ceil(cMin/pInterval)*pInterval;
     pMax = floor(cMax/pInterval)*pInterval;
-    pNum = Round((pMax - pMin)/pInterval + 1.0);
+    pNum = round((pMax - pMin)/pInterval + 1.0);
 
     mode = 3.0;
   }else if(pNum <= 10.0){
@@ -636,7 +678,7 @@ double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double 
     /* gives 20-3 lines for 100-10 diff */
     pMin = ceil(cMin/pInterval)*pInterval;
     pMax = floor(cMax/pInterval)*pInterval;
-    pNum = Round((pMax - pMin)/pInterval + 1.0);
+    pNum = round((pMax - pMin)/pInterval + 1.0);
 
     mode = 2.0;
   }
@@ -669,7 +711,7 @@ double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double 
 
     /* Prioritize x.1-x.4 and x.6-x.9 lower */
     if(mode == 4.0){
-      rem = fmod(fabs(Round(num/pow(10.0, p))), 10.0);
+      rem = fmod(fabs(round(num/pow(10.0, p))), 10.0);
 
       priority = 1.0;
       if(rem == 1.0 || rem == 2.0 || rem == 3.0 || rem == 4.0 || rem == 6.0 || rem == 7.0 || rem == 8.0 || rem == 9.0){
@@ -697,8 +739,11 @@ double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double 
   }
 
   *returnArrayLength = positionsLength;
+
   return positions;
 }
+
+
 double MapYCoordinate(double y, double yMin, double yMax, double yPixelMin, double yPixelMax){
   double yLength, yPixelLength;
 
@@ -711,6 +756,8 @@ double MapYCoordinate(double y, double yMin, double yMax, double yPixelMin, doub
   y = y + yPixelMin;
   return y;
 }
+
+
 double MapXCoordinate(double x, double xMin, double xMax, double xPixelMin, double xPixelMax){
   double xLength, xPixelLength;
 
@@ -722,12 +769,18 @@ double MapXCoordinate(double x, double xMin, double xMax, double xPixelMin, doub
   x = x + xPixelMin;
   return x;
 }
+
+
 double MapXCoordinateAutoSettings(double x, RGBABitmapImage *image, double *xs, size_t xsLength){
   return MapXCoordinate(x, GetMinimum(xs, xsLength), GetMaximum(xs, xsLength), GetDefaultPaddingPercentage()*ImageWidth(image), (1.0 - GetDefaultPaddingPercentage())*ImageWidth(image));
 }
+
+
 double MapYCoordinateAutoSettings(double y, RGBABitmapImage *image, double *ys, size_t ysLength){
   return MapYCoordinate(y, GetMinimum(ys, ysLength), GetMaximum(ys, ysLength), GetDefaultPaddingPercentage()*ImageHeight(image), (1.0 - GetDefaultPaddingPercentage())*ImageHeight(image));
 }
+
+
 double MapXCoordinateBasedOnSettings(double x, ScatterPlotSettings *settings){
   double xMin, xMax, xPadding, xPixelMin, xPixelMax;
   Rectangle *boundaries;
@@ -748,6 +801,8 @@ double MapXCoordinateBasedOnSettings(double x, ScatterPlotSettings *settings){
 
   return MapXCoordinate(x, xMin, xMax, xPixelMin, xPixelMax);
 }
+
+
 double MapYCoordinateBasedOnSettings(double y, ScatterPlotSettings *settings){
   double yMin, yMax, yPadding, yPixelMin, yPixelMax;
   Rectangle *boundaries;
@@ -768,101 +823,51 @@ double MapYCoordinateBasedOnSettings(double y, ScatterPlotSettings *settings){
 
   return MapYCoordinate(y, yMin, yMax, yPixelMin, yPixelMax);
 }
+
+
 double GetDefaultPaddingPercentage(){
   return 0.10;
 }
-void DrawText(RGBABitmapImage *canvas, double x, double y, char *text, size_t textLength, RGBA *color){
+
+
+void DrawText(RGBABitmapImage *canvas, double x, double y, char *text, RGBA *color){
   double i, charWidth, spacing;
 
   charWidth = 8.0;
   spacing = 2.0;
 
-  for(i = 0.0; i < (double)textLength; i = i + 1.0){
+  for(i = 0.0; text[(int)i] != 0; i = i + 1.0){
     DrawAsciiCharacter(canvas, x + i*(charWidth + spacing), y, text[(int)(i)], color);
   }
 }
+
+
 void DrawTextUpwards(RGBABitmapImage *canvas, double x, double y, char *text, size_t textLength, RGBA *color){
   RGBABitmapImage *buffer, *rotated;
 
-  buffer = CreateImage(GetTextWidth(text, textLength), GetTextHeight(text, textLength), GetTransparent());
-  DrawText(buffer, 0.0, 0.0, text, textLength, color);
+  buffer = CreateImage(GetTextWidth(textLength), GetTextHeight, GetTransparent());
+  DrawText(buffer, 0.0, 0.0, text, color);
   rotated = RotateAntiClockwise90Degrees(buffer);
   DrawImageOnImage(canvas, rotated, x, y);
   DeleteImage(buffer);
   DeleteImage(rotated);
 }
-ScatterPlotSettings *GetDefaultScatterPlotSettings(){
-  ScatterPlotSettings *settings;
-
-  settings = (ScatterPlotSettings *)calloc(sizeof(ScatterPlotSettings), 1);
-
-  settings->autoBoundaries = true;
-  settings->xMax = 0.0;
-  settings->xMin = 0.0;
-  settings->yMax = 0.0;
-  settings->yMin = 0.0;
-  settings->autoPadding = true;
-  settings->xPadding = 0.0;
-  settings->yPadding = 0.0;
-  settings->title = "";
-  settings->titleLength = strlen(settings->title);
-  settings->xLabel = "";
-  settings->xLabelLength = strlen(settings->xLabel);
-  settings->yLabel = "";
-  settings->yLabelLength = strlen(settings->yLabel);
-  settings->scatterPlotSeries = (ScatterPlotSeries**)calloc(sizeof(ScatterPlotSeries) * (0.0), 1);
-  settings->scatterPlotSeriesLength = 0.0;
-  settings->showGrid = true;
-  settings->gridColor = GetGray(0.1);
-  settings->xAxisAuto = true;
-  settings->xAxisTop = false;
-  settings->xAxisBottom = false;
-  settings->yAxisAuto = true;
-  settings->yAxisLeft = false;
-  settings->yAxisRight = false;
-
-  return settings;
-}
 
 
-ScatterPlotSeries *GetDefaultScatterPlotSeriesSettings()
-{
-  ScatterPlotSeries *series;
-
-  series = (ScatterPlotSeries *)calloc(sizeof(ScatterPlotSeries), 1);
-
-  series->linearInterpolation = true;
-  series->pointType = "pixels";
-  series->pointTypeLength = strlen(series->pointType);
-  series->lineType = "solid";
-  series->lineTypeLength = strlen(series->lineType);
-  series->lineThickness = 1.0;
-  series->xs = (double*)calloc(sizeof(double) * (0.0), 1);
-  series->xsLength = 0.0;
-  series->ys = (double*)calloc(sizeof(double) * (0.0), 1);
-  series->ysLength = 0.0;
-  series->color = GetBlack();
-
-  return series;
-}
 bool DrawScatterPlot(RGBABitmapImageReference *canvasReference, double width, double height, double *xs, size_t xsLength, double *ys, size_t ysLength){
-  ScatterPlotSettings *settings;
+  ScatterPlotSettings settings = GetDefaultScatterPlotSettings();
 
-  settings = GetDefaultScatterPlotSettings();
+  settings.width = width;
+  settings.height = height;
+  settings.scatterPlotSeries = (ScatterPlotSeries[1]) {0};//(ScatterPlotSeries**) calloc(sizeof(ScatterPlotSeries) * (1.0), 1);
+  settings.scatterPlotSeriesLength = 1.0;
+  settings.scatterPlotSeries[0] = GetDefaultScatterPlotSeriesSettings();
+  settings.scatterPlotSeries[0].xs = xs;
+  settings.scatterPlotSeries[0].xsLength = xsLength;
+  settings.scatterPlotSeries[0].ys = ys;
+  settings.scatterPlotSeries[0].ysLength = ysLength;
 
-  settings->width = width;
-  settings->height = height;
-  settings->scatterPlotSeries = (ScatterPlotSeries**)calloc(sizeof(ScatterPlotSeries) * (1.0), 1);
-  settings->scatterPlotSeriesLength = 1.0;
-  settings->scatterPlotSeries[0] = GetDefaultScatterPlotSeriesSettings();
-  free(settings->scatterPlotSeries[0]->xs);
-  settings->scatterPlotSeries[0]->xs = xs;
-  settings->scatterPlotSeries[0]->xsLength = xsLength;
-  free(settings->scatterPlotSeries[0]->ys);
-  settings->scatterPlotSeries[0]->ys = ys;
-  settings->scatterPlotSeries[0]->ysLength = ysLength;
-
-  return DrawScatterPlotFromSettings(canvasReference, settings);
+  return DrawScatterPlotFromSettings(canvasReference, &settings);
 }
 
 
@@ -928,7 +933,7 @@ bool DrawScatterPlotFromSettings(RGBABitmapImageReference *canvasReference, Scat
     }
 
     /* Draw title */
-    DrawText(canvas, floor(settings->width/2.0 - GetTextWidth(settings->title, settings->titleLength)/2.0), floor(yPadding/3.0), settings->title, settings->titleLength, GetBlack());
+    DrawText(canvas, floor(settings->width/2.0 - GetTextWidth(strlen(settings->title))/2.0), floor(yPadding/3.0), settings->title, GetBlack());
 
     /* Draw grid */
     xPixelMin = xPadding;
@@ -947,6 +952,7 @@ bool DrawScatterPlotFromSettings(RGBABitmapImageReference *canvasReference, Scat
     yLabelPriorities = (NumberArrayReference *)calloc(sizeof(NumberArrayReference), 1);
     xGridPositions = ComputeGridLinePositions(&xGridPositionsLength, xMin, xMax, xLabels, xLabelPriorities);
     yGridPositions = ComputeGridLinePositions(&yGridPositionsLength, yMin, yMax, yLabels, yLabelPriorities);
+
 
     if(settings->showGrid){
       /* X-grid */
@@ -1018,6 +1024,7 @@ if(settings->yAxisLeft){
     /* Labels */
     occupied = (Rectangle**)calloc(sizeof(Rectangle) * ((double)xLabels->stringArrayLength + (double)yLabels->stringArrayLength), 1);
     occupiedLength = (double)xLabels->stringArrayLength + (double)yLabels->stringArrayLength;
+
     for(i = 0.0; i < (double)occupiedLength; i = i + 1.0){
       occupied[(int)(i)] = CreateRectangle(0.0, 0.0, 0.0, 0.0);
     }
@@ -1029,7 +1036,7 @@ if(settings->yAxisLeft){
       if( !settings->xAxisAuto  && settings->xAxisTop){
         textOnBottom = false;
       }
-      DrawXLabelsForPriority(i, xMin, originYPixels, xMax, xPixelMin, xPixelMax, nextRectangle, gridLabelColor, canvas, xGridPositions, xGridPositionsLength, xLabels, xLabelPriorities, occupied, occupiedLength, textOnBottom);
+      DrawXLabelsForPriority(i, xMin, originYPixels, xMax, xPixelMin, xPixelMax, nextRectangle, gridLabelColor, canvas, xGridPositions, xGridPositionsLength, xLabels, xLabelPriorities, occupied, textOnBottom);
     }
 
     /* y labels */
@@ -1038,7 +1045,8 @@ if(settings->yAxisLeft){
       if( !settings->yAxisAuto  && settings->yAxisRight){
         textOnLeft = false;
       }
-      DrawYLabelsForPriority(i, yMin, originXPixels, yMax, yPixelMin, yPixelMax, nextRectangle, gridLabelColor, canvas, yGridPositions, yGridPositionsLength, yLabels, yLabelPriorities, occupied, occupiedLength, textOnLeft);
+
+      DrawYLabelsForPriority(i, yMin, originXPixels, yMax, yPixelMin, yPixelMax, nextRectangle, gridLabelColor, canvas, yGridPositions, yGridPositionsLength, yLabels, yLabelPriorities, occupied, textOnLeft);
     }
 
     /* Draw origin line axis titles. */
@@ -1046,17 +1054,18 @@ if(settings->yAxisLeft){
 
     /* x origin line */
     if(originYInside){
-      DrawLine1px(canvas, Round(xPixelMin), Round(originYPixels), Round(xPixelMax), Round(originYPixels), GetBlack());
+      DrawLine1px(canvas, round(xPixelMin), round(originYPixels), round(xPixelMax), round(originYPixels), GetBlack());
     }
 
     /* y origin line */
     if(originXInside){
-      DrawLine1px(canvas, Round(originXPixels), Round(yPixelMin), Round(originXPixels), Round(yPixelMax), GetBlack());
+      DrawLine1px(canvas, round(originXPixels), round(yPixelMin), round(originXPixels), round(yPixelMax), GetBlack());
     }
 
+
     /* Draw origin axis titles. */
-    DrawTextUpwards(canvas, 10.0, floor(originTextYPixels - GetTextWidth(settings->yLabel, settings->yLabelLength)/2.0), settings->yLabel, settings->yLabelLength, GetBlack());
-    DrawText(canvas, floor(originTextXPixels - GetTextWidth(settings->xLabel, settings->xLabelLength)/2.0), yPixelMax + axisLabelPadding, settings->xLabel, settings->xLabelLength, GetBlack());
+    DrawTextUpwards(canvas, 10.0, floor(originTextYPixels - GetTextWidth(strlen(settings->yLabel))/2.0), settings->yLabel, strlen(settings->yLabel), GetBlack());
+    DrawText(canvas, floor(originTextXPixels - GetTextWidth(strlen(settings->xLabel))/2.0), yPixelMax + axisLabelPadding, settings->xLabel, GetBlack());
 
     /* X-grid-markers */
     for(i = 0.0; i < (double)xGridPositionsLength; i = i + 1.0){
@@ -1096,7 +1105,7 @@ if(settings->yAxisLeft){
 
     /* Draw points */
     for(plot = 0.0; plot < (double)settings->scatterPlotSeriesLength; plot = plot + 1.0){
-      sp = settings->scatterPlotSeries[(int)(plot)];
+      sp = &settings->scatterPlotSeries[(int)(plot)];
 
       xs = sp->xs;
       xsLength = sp->xsLength;
@@ -1129,25 +1138,33 @@ if(settings->yAxisLeft){
               px = floor(MapXCoordinate(x2Ref->numberValue, xMin, xMax, xPixelMin, xPixelMax));
               py = floor(MapYCoordinate(y2Ref->numberValue, yMin, yMax, yPixelMin, yPixelMax));
 
-              if(aStringsEqual(sp->lineType, sp->lineTypeLength, strparam("solid")) && sp->lineThickness == 1.0){
-                DrawLine1px(canvas, pxPrev, pyPrev, px, py, sp->color);
-              }else if(aStringsEqual(sp->lineType, sp->lineTypeLength, strparam("solid"))){
-                DrawLine(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, sp->color);
-              }else if(aStringsEqual(sp->lineType, sp->lineTypeLength, strparam("dashed"))){
-                linePattern = GetLinePattern1(&linePatternLength);
-                DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
-              }else if(aStringsEqual(sp->lineType, sp->lineTypeLength, strparam("dotted"))){
-                linePattern = GetLinePattern2(&linePatternLength);
-                DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
-              }else if(aStringsEqual(sp->lineType, sp->lineTypeLength, strparam("dotdash"))){
-                linePattern = GetLinePattern3(&linePatternLength);
-                DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
-              }else if(aStringsEqual(sp->lineType, sp->lineTypeLength, strparam("longdash"))){
-                linePattern = GetLinePattern4(&linePatternLength);
-                DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
-              }else if(aStringsEqual(sp->lineType, sp->lineTypeLength, strparam("twodash"))){
-                linePattern = GetLinePattern5(&linePatternLength);
-                DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
+              switch(sp->lineType) {
+                  case Plot_LineType_Solid:
+                      if(sp->lineThickness == 1.0)
+                          DrawLine1px(canvas, pxPrev, pyPrev, px, py, sp->color);
+                      else 
+                          DrawLine(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, sp->color);
+                      break;
+                  case Plot_LineType_Dashed:
+                      linePattern = GetLinePattern1(&linePatternLength);
+                      DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
+                      break;
+                  case Plot_LineType_Dotted:
+                      linePattern = GetLinePattern2(&linePatternLength);
+                      DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
+                      break;
+                  case Plot_LineType_Dotdash:
+                      linePattern = GetLinePattern3(&linePatternLength);
+                      DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
+                      break;
+                  case Plot_LineType_Longdash:
+                      linePattern = GetLinePattern4(&linePatternLength);
+                      DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
+                      break;
+                  case Plot_LineType_Twodash:
+                      linePattern = GetLinePattern5(&linePatternLength);
+                      DrawLineBresenhamsAlgorithmThickPatterned(canvas, pxPrev, pyPrev, px, py, sp->lineThickness, linePattern, linePatternLength, patternOffset, sp->color);
+                      break;
               }
             }
           }
@@ -1166,33 +1183,41 @@ if(settings->yAxisLeft){
             x = floor(MapXCoordinate(x, xMin, xMax, xPixelMin, xPixelMax));
             y = floor(MapYCoordinate(y, yMin, yMax, yPixelMin, yPixelMax));
 
-            if(aStringsEqual(sp->pointType, sp->pointTypeLength, strparam("crosses"))){
-              DrawPixel(canvas, x, y, sp->color);
-              DrawPixel(canvas, x + 1.0, y, sp->color);
-              DrawPixel(canvas, x + 2.0, y, sp->color);
-              DrawPixel(canvas, x - 1.0, y, sp->color);
-              DrawPixel(canvas, x - 2.0, y, sp->color);
-              DrawPixel(canvas, x, y + 1.0, sp->color);
-              DrawPixel(canvas, x, y + 2.0, sp->color);
-              DrawPixel(canvas, x, y - 1.0, sp->color);
-              DrawPixel(canvas, x, y - 2.0, sp->color);
-            }else if(aStringsEqual(sp->pointType, sp->pointTypeLength, strparam("circles"))){
-              DrawCircle(canvas, x, y, 3.0, sp->color);
-            }else if(aStringsEqual(sp->pointType, sp->pointTypeLength, strparam("dots"))){
-              DrawFilledCircle(canvas, x, y, 3.0, sp->color);
-            }else if(aStringsEqual(sp->pointType, sp->pointTypeLength, strparam("triangles"))){
-              DrawTriangle(canvas, x, y, 3.0, sp->color);
-            }else if(aStringsEqual(sp->pointType, sp->pointTypeLength, strparam("filled triangles"))){
-              DrawFilledTriangle(canvas, x, y, 3.0, sp->color);
-            }else if(aStringsEqual(sp->pointType, sp->pointTypeLength, strparam("pixels"))){
-              DrawPixel(canvas, x, y, sp->color);
-            }else if(aStringsEqual(sp->pointType, sp->pointTypeLength, strparam("dotlinetoxaxis"))){
-              DrawFilledCircle(canvas, x, y, 3.0, sp->color);
-              yaxis = floor(MapYCoordinate(0.0, yMin, yMax, yPixelMin, yPixelMax));
-              yaxis = fmin(fmax(yaxis, yPixelMin), yPixelMax);
-              DrawLine(canvas, x, y, x, yaxis, sp->lineThickness, sp->color);
+            switch(sp->pointType) {
+                case Plot_PointType_Crosses:
+                    DrawPixel(canvas, x, y, sp->color);
+                    DrawPixel(canvas, x + 1.0, y, sp->color);
+                    DrawPixel(canvas, x + 2.0, y, sp->color);
+                    DrawPixel(canvas, x - 1.0, y, sp->color);
+                    DrawPixel(canvas, x - 2.0, y, sp->color);
+                    DrawPixel(canvas, x, y + 1.0, sp->color);
+                    DrawPixel(canvas, x, y + 2.0, sp->color);
+                    DrawPixel(canvas, x, y - 1.0, sp->color);
+                    DrawPixel(canvas, x, y - 2.0, sp->color);
+                    break;
+                case Plot_PointType_Circles:
+                    DrawCircle(canvas, x, y, 3.0, sp->color);
+                    break;
+                case Plot_PointType_Dots:
+                    DrawFilledCircle(canvas, x, y, 3.0, sp->color);
+                    break;
+                case Plot_PointType_Triangles:
+                    DrawTriangle(canvas, x, y, 3.0, sp->color);
+                    break;
+                case Plot_PointType_FilledTriangles:
+                    DrawFilledTriangle(canvas, x, y, 3.0, sp->color);
+                    break;
+                case Plot_PointType_Pixels:
+                    DrawPixel(canvas, x, y, sp->color);
+                    break;
+                case Plot_PointType_DotlineToXAxis:
+                    DrawFilledCircle(canvas, x, y, 3.0, sp->color);
+                    yaxis = floor(MapYCoordinate(0.0, yMin, yMax, yPixelMin, yPixelMax));
+                    yaxis = fmin(fmax(yaxis, yPixelMin), yPixelMax);
+                    DrawLine(canvas, x, y, x, yaxis, sp->lineThickness, sp->color);
+                    break;
             }
-          }
+         }
         }
       }
     }
@@ -1202,15 +1227,17 @@ if(settings->yAxisLeft){
 
   return success;
 }
+
+
 void ComputeBoundariesBasedOnSettings(ScatterPlotSettings *settings, Rectangle *boundaries){
   ScatterPlotSeries *sp;
   double plot, xMin, xMax, yMin, yMax;
 
   if((double)settings->scatterPlotSeriesLength >= 1.0){
-    xMin = GetMinimum(settings->scatterPlotSeries[0]->xs, settings->scatterPlotSeries[0]->xsLength)*1.05;
-    xMax = GetMaximum(settings->scatterPlotSeries[0]->xs, settings->scatterPlotSeries[0]->xsLength)*1.05;
-    yMin = GetMinimum(settings->scatterPlotSeries[0]->ys, settings->scatterPlotSeries[0]->ysLength)*1.05;
-    yMax = GetMaximum(settings->scatterPlotSeries[0]->ys, settings->scatterPlotSeries[0]->ysLength)*1.05;
+    xMin = GetMinimum(settings->scatterPlotSeries[0].xs, settings->scatterPlotSeries[0].xsLength)*1.05;
+    xMax = GetMaximum(settings->scatterPlotSeries[0].xs, settings->scatterPlotSeries[0].xsLength)*1.05;
+    yMin = GetMinimum(settings->scatterPlotSeries[0].ys, settings->scatterPlotSeries[0].ysLength)*1.05;
+    yMax = GetMaximum(settings->scatterPlotSeries[0].ys, settings->scatterPlotSeries[0].ysLength)*1.05;
   }else{
     xMin =  -10.0;
     xMax = 10.0;
@@ -1225,7 +1252,7 @@ void ComputeBoundariesBasedOnSettings(ScatterPlotSettings *settings, Rectangle *
     yMax = settings->yMax;
   }else{
     for(plot = 1.0; plot < (double)settings->scatterPlotSeriesLength; plot = plot + 1.0){
-      sp = settings->scatterPlotSeries[(int)(plot)];
+      sp = &settings->scatterPlotSeries[(int)(plot)];
 
       xMin = fmin(xMin, GetMinimum(sp->xs, sp->xsLength));
       xMax = fmax(xMax, GetMaximum(sp->xs, sp->xsLength));
@@ -1239,6 +1266,8 @@ void ComputeBoundariesBasedOnSettings(ScatterPlotSettings *settings, Rectangle *
   boundaries->x2 = xMax;
   boundaries->y2 = yMax;
 }
+
+
 bool ScatterPlotFromSettingsValid(ScatterPlotSettings *settings){
   bool success, found;
   ScatterPlotSeries *series;
@@ -1250,7 +1279,6 @@ bool ScatterPlotFromSettingsValid(ScatterPlotSettings *settings){
   if( !settings->xAxisAuto ){
     if(settings->xAxisTop && settings->xAxisBottom){
       success = false;
-		
       fprintf(stderr, "x-axis not automatic and configured to be both on top and on bottom.\n");
     }
     if( !settings->xAxisTop  &&  !settings->xAxisBottom ){
@@ -1272,7 +1300,7 @@ bool ScatterPlotFromSettingsValid(ScatterPlotSettings *settings){
 
   /* Check series lengths. */
   for(i = 0.0; i < (double)settings->scatterPlotSeriesLength; i = i + 1.0){
-    series = settings->scatterPlotSeries[(int)(i)];
+    series = &settings->scatterPlotSeries[(int)(i)];
     if((double)series->xsLength != (double)series->ysLength){
       success = false;
       fprintf(stderr, "x and y series must be of the same length.\n");
@@ -1323,7 +1351,7 @@ bool ScatterPlotFromSettingsValid(ScatterPlotSettings *settings){
 
   /* Check point types. */
   for(i = 0.0; i < (double)settings->scatterPlotSeriesLength; i = i + 1.0){
-    series = settings->scatterPlotSeries[(int)(i)];
+    series = &settings->scatterPlotSeries[(int)(i)];
 
     if(series->lineThickness < 0.0){
       success = false;
@@ -1332,41 +1360,37 @@ bool ScatterPlotFromSettingsValid(ScatterPlotSettings *settings){
 
     if( !series->linearInterpolation ){
       /* Point type. */
-      found = false;
-      if(aStringsEqual(series->pointType, series->pointTypeLength, strparam("crosses"))){
-        found = true;
-      }else if(aStringsEqual(series->pointType, series->pointTypeLength, strparam("circles"))){
-        found = true;
-      }else if(aStringsEqual(series->pointType, series->pointTypeLength, strparam("dots"))){
-        found = true;
-      }else if(aStringsEqual(series->pointType, series->pointTypeLength, strparam("triangles"))){
-        found = true;
-      }else if(aStringsEqual(series->pointType, series->pointTypeLength, strparam("filled triangles"))){
-        found = true;
-      }else if(aStringsEqual(series->pointType, series->pointTypeLength, strparam("pixels"))){
-        found = true;
-      }else if(aStringsEqual(series->pointType, series->pointTypeLength, strparam("dotlinetoxaxis"))){
-        found = true;
+      switch(series->pointType) {
+          case Plot_PointType_Crosses:
+          case Plot_PointType_Circles:
+          case Plot_PointType_Dots:
+          case Plot_PointType_Triangles:
+          case Plot_PointType_FilledTriangles:
+          case Plot_PointType_Pixels:
+          case Plot_PointType_DotlineToXAxis:
+              found = true;
+              break;
+          default:
+              found = false;
       }
+
       if( !found ){
         success = false;
         fprintf(stderr, "The point type is unknown.\n");
       }
     }else{
       /* Line type. */
-      found = false;
-      if(aStringsEqual(series->lineType, series->lineTypeLength, strparam("solid"))){
-        found = true;
-      }else if(aStringsEqual(series->lineType, series->lineTypeLength, strparam("dashed"))){
-        found = true;
-      }else if(aStringsEqual(series->lineType, series->lineTypeLength, strparam("dotted"))){
-        found = true;
-      }else if(aStringsEqual(series->lineType, series->lineTypeLength, strparam("dotdash"))){
-        found = true;
-      }else if(aStringsEqual(series->lineType, series->lineTypeLength, strparam("longdash"))){
-        found = true;
-      }else if(aStringsEqual(series->lineType, series->lineTypeLength, strparam("twodash"))){
-        found = true;
+      switch(series->lineType) {
+          case Plot_LineType_Solid:
+          case Plot_LineType_Dashed:
+          case Plot_LineType_Dotted:
+          case Plot_LineType_Dotdash:
+          case Plot_LineType_Longdash:
+          case Plot_LineType_Twodash:
+              found = true;
+              break;
+          default:
+              found = false;
       }
 
       if( !found ){
@@ -1378,91 +1402,33 @@ bool ScatterPlotFromSettingsValid(ScatterPlotSettings *settings){
 
   return success;
 }
-BarPlotSettings *GetDefaultBarPlotSettings(){
-  BarPlotSettings *settings;
 
-  settings = (BarPlotSettings *)calloc(sizeof(BarPlotSettings), 1);
 
-  settings->width = 800.0;
-  settings->height = 600.0;
-  settings->autoBoundaries = true;
-  settings->yMax = 0.0;
-  settings->yMin = 0.0;
-  settings->autoPadding = true;
-  settings->xPadding = 0.0;
-  settings->yPadding = 0.0;
-  settings->title = "";
-  settings->titleLength = strlen(settings->title);
-  settings->yLabel = "";
-  settings->yLabelLength = strlen(settings->yLabel);
-  settings->barPlotSeries = (BarPlotSeries**)calloc(sizeof(BarPlotSeries) * (0.0), 1);
-  settings->barPlotSeriesLength = 0.0;
-  settings->showGrid = true;
-  settings->gridColor = GetGray(0.1);
-  settings->autoColor = true;
-  settings->grayscaleAutoColor = false;
-  settings->autoSpacing = true;
-  settings->groupSeparation = 0.0;
-  settings->barSeparation = 0.0;
-  settings->autoLabels = true;
-  settings->xLabels = (StringReference**)calloc(sizeof(StringReference) * (0.0), 1);
-  settings->xLabelsLength = 0.0;
-  /*settings.autoLabels = false;
-        settings.xLabels = new StringReference [5];
-        settings.xLabels[0] = CreateStringReference("may 20".toCharArray());
-        settings.xLabels[1] = CreateStringReference("jun 20".toCharArray());
-        settings.xLabels[2] = CreateStringReference("jul 20".toCharArray());
-        settings.xLabels[3] = CreateStringReference("aug 20".toCharArray());
-        settings.xLabels[4] = CreateStringReference("sep 20".toCharArray()); */
-  settings->barBorder = false;
-
-  return settings;
-}
-BarPlotSeries *GetDefaultBarPlotSeriesSettings(){
-  BarPlotSeries *series;
-
-  series = (BarPlotSeries *)calloc(sizeof(BarPlotSeries), 1);
-
-  series->ys = (double*)calloc(sizeof(double) * (0.0), 1);
-  series->ysLength = 0.0;
-  series->color = GetBlack();
-
-  return series;
-}
 RGBABitmapImage *DrawBarPlotNoErrorCheck(double width, double height, double *ys, size_t ysLength){
-  StringReference *errorMessage;
-  RGBABitmapImageReference *canvasReference;
-
-  errorMessage = (StringReference *)calloc(sizeof(StringReference), 1);
-  canvasReference = CreateRGBABitmapImageReference();
-
-  DrawBarPlot(canvasReference, width, height, ys, ysLength, errorMessage);
-
-  FreeStringReference(errorMessage);
+  RGBABitmapImageReference *canvasReference = CreateRGBABitmapImageReference();
+  DrawBarPlot(canvasReference, width, height, ys, ysLength);
 
   return canvasReference->image;
 }
-bool DrawBarPlot(RGBABitmapImageReference *canvasReference, double width, double height, double *ys, size_t ysLength, StringReference *errorMessage){
-  BarPlotSettings *settings;
-  bool success;
 
-  errorMessage = (StringReference *)calloc(sizeof(StringReference), 1);
+
+bool DrawBarPlot(RGBABitmapImageReference *canvasReference, double width, double height, double *ys, size_t ysLength){
+  BarPlotSettings settings;
+
   settings = GetDefaultBarPlotSettings();
+  settings.barPlotSeries = (BarPlotSeries[1]){0}; 
+  settings.barPlotSeriesLength = 1.0;
+  settings.barPlotSeries[0] = GetDefaultBarPlotSeriesSettings();
+  settings.barPlotSeries[0].ys = ys;
+  settings.barPlotSeries[0].ysLength = ysLength;
+  settings.width = width;
+  settings.height = height;
 
-  settings->barPlotSeries = (BarPlotSeries**)calloc(sizeof(BarPlotSeries) * (1.0), 1);
-  settings->barPlotSeriesLength = 1.0;
-  settings->barPlotSeries[0] = GetDefaultBarPlotSeriesSettings();
-  free(settings->barPlotSeries[0]->ys);
-  settings->barPlotSeries[0]->ys = ys;
-  settings->barPlotSeries[0]->ysLength = ysLength;
-  settings->width = width;
-  settings->height = height;
-
-  success = DrawBarPlotFromSettings(canvasReference, settings, errorMessage);
-
-  return success;
+  return DrawBarPlotFromSettings(canvasReference, &settings);
 }
-bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotSettings *settings, StringReference *errorMessage){
+
+
+bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotSettings *settings){
   double xPadding, yPadding;
   double xPixelMin, yPixelMin, yPixelMax, xPixelMax;
   double xLengthPixels, yLengthPixels;
@@ -1484,7 +1450,7 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
   bool success;
   RGBABitmapImage *canvas;
 
-  success = BarPlotSettingsIsValid(settings, errorMessage);
+  success = BarPlotSettingsIsValid(settings);
 
   if(success){
     canvas = CreateImage(settings->width, settings->height, GetWhite());
@@ -1502,18 +1468,18 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
     }
 
     /* Draw title */
-    DrawText(canvas, floor(ImageWidth(canvas)/2.0 - GetTextWidth(settings->title, settings->titleLength)/2.0), floor(yPadding/3.0), settings->title, settings->titleLength, GetBlack());
-    DrawTextUpwards(canvas, 10.0, floor(ImageHeight(canvas)/2.0 - GetTextWidth(settings->yLabel, settings->yLabelLength)/2.0), settings->yLabel, settings->yLabelLength, GetBlack());
+    DrawText(canvas, floor(ImageWidth(canvas)/2.0 - GetTextWidth(strlen(settings->title))/2.0), floor(yPadding/3.0), settings->title, GetBlack());
+    DrawTextUpwards(canvas, 10.0, floor(ImageHeight(canvas)/2.0 - GetTextWidth(strlen(settings->yLabel))/2.0), settings->yLabel, strlen(settings->yLabel), GetBlack());
 
     /* min and max */
     if(settings->autoBoundaries){
       if(ss >= 1.0){
-        yMax = GetMaximum(settings->barPlotSeries[0]->ys, settings->barPlotSeries[0]->ysLength)*1.05;
-        yMin = fmin(0.0, GetMinimum(settings->barPlotSeries[0]->ys, settings->barPlotSeries[0]->ysLength))*1.05;
+        yMax = GetMaximum(settings->barPlotSeries[0].ys, settings->barPlotSeries[0].ysLength)*1.05;
+        yMin = fmin(0.0, GetMinimum(settings->barPlotSeries[0].ys, settings->barPlotSeries[0].ysLength))*1.05;
 
         for(s = 0.0; s < ss; s = s + 1.0){
-          yMax = fmax(yMax, GetMaximum(settings->barPlotSeries[(int)(s)]->ys, settings->barPlotSeries[(int)(s)]->ysLength));
-          yMin = fmin(yMin, GetMinimum(settings->barPlotSeries[(int)(s)]->ys, settings->barPlotSeries[(int)(s)]->ysLength));
+          yMax = fmax(yMax, GetMaximum(settings->barPlotSeries[(int)(s)].ys, settings->barPlotSeries[(int)(s)].ysLength));
+          yMin = fmin(yMin, GetMinimum(settings->barPlotSeries[(int)(s)].ys, settings->barPlotSeries[(int)(s)].ysLength));
         }
       }else{
         yMax = 10.0;
@@ -1564,7 +1530,7 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
     nextRectangle = CreateNumberReference(0.0);
 
     for(i = 1.0; i <= 5.0; i = i + 1.0){
-      DrawYLabelsForPriority(i, yMin, xPixelMin, yMax, yPixelMin, yPixelMax, nextRectangle, gridLabelColor, canvas, yGridPositions, yGridPositionsLength, yLabels, yLabelPriorities, occupied, occupiedLength, true);
+      DrawYLabelsForPriority(i, yMin, xPixelMin, yMax, yPixelMin, yPixelMax, nextRectangle, gridLabelColor, canvas, yGridPositions, yGridPositionsLength, yLabels, yLabelPriorities, occupied, true);
     }
 
     /* Draw bars. */
@@ -1588,7 +1554,7 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
     }
 
     /* distances */
-    bs = (double)settings->barPlotSeries[0]->ysLength;
+    bs = (double)settings->barPlotSeries[0].ysLength;
 
     if(settings->autoSpacing){
       groupSeparation = ImageWidth(canvas)*0.05;
@@ -1604,7 +1570,7 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
     b = 0.0;
     for(n = 0.0; n < bs; n = n + 1.0){
       for(s = 0.0; s < ss; s = s + 1.0){
-        ys = settings->barPlotSeries[(int)(s)]->ys;
+        ys = settings->barPlotSeries[(int)(s)].ys;
 
         yValue = ys[(int)(n)];
 
@@ -1641,14 +1607,14 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
         if(settings->autoColor){
           barColor = colors[(int)(s)];
         }else{
-          barColor = settings->barPlotSeries[(int)(s)]->color;
+          barColor = settings->barPlotSeries[(int)(s)].color;
         }
 
         /* Draw */
         if(settings->barBorder){
-          DrawFilledRectangleWithBorder(canvas, Round(x), Round(y), Round(w), Round(h), GetBlack(), barColor);
+          DrawFilledRectangleWithBorder(canvas, round(x), round(y), round(w), round(h), GetBlack(), barColor);
         }else{
-          DrawFilledRectangle(canvas, Round(x), Round(y), Round(w), Round(h), barColor);
+          DrawFilledRectangle(canvas, round(x), round(y), round(w), round(h), barColor);
         }
 
         b = b + 1.0;
@@ -1661,15 +1627,15 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
       if(settings->autoLabels){
         label = CreateStringDecimalFromNumber(&labelLength, n + 1.0);
       }else{
-        label = settings->xLabels[(int)(n)]->string;
-        labelLength = settings->xLabels[(int)(n)]->stringLength;
+        label = settings->xLabels[(int)(n)];
+        labelLength = strlen(settings->xLabels[(int)(n)]);
       }
 
-      textwidth = GetTextWidth(label, labelLength);
+      textwidth = GetTextWidth(labelLength);
 
       x = xPixelMin + (n + 0.5)*(ss*barWidth + (ss - 1.0)*barSeparation) + n*groupSeparation - textwidth/2.0;
 
-      DrawText(canvas, floor(x), ImageHeight(canvas) - yPadding + 20.0, label, labelLength, gridLabelColor);
+      DrawText(canvas, floor(x), ImageHeight(canvas) - yPadding + 20.0, label, gridLabelColor);
 
       b = b + 1.0;
     }
@@ -1679,7 +1645,9 @@ bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotS
 
   return success;
 }
-bool BarPlotSettingsIsValid(BarPlotSettings *settings, StringReference *errorMessage){
+
+
+bool BarPlotSettingsIsValid(BarPlotSettings *settings){
   bool success, lengthSet;
   BarPlotSeries *series;
   double i, length;
@@ -1690,15 +1658,14 @@ bool BarPlotSettingsIsValid(BarPlotSettings *settings, StringReference *errorMes
   lengthSet = false;
   length = 0.0;
   for(i = 0.0; i < (double)settings->barPlotSeriesLength; i = i + 1.0){
-    series = settings->barPlotSeries[(int)(i)];
+    series = &settings->barPlotSeries[(int)(i)];
 
     if( !lengthSet ){
       length = (double)series->ysLength;
       lengthSet = true;
     }else if(length != (double)series->ysLength){
       success = false;
-      errorMessage->string = "The number of data points must be equal for all series.";
-      errorMessage->stringLength = strlen(errorMessage->string);
+      fprintf(stderr, "The number of data points must be equal for all series.");
     }
   }
 
@@ -1706,8 +1673,7 @@ bool BarPlotSettingsIsValid(BarPlotSettings *settings, StringReference *errorMes
   if( !settings->autoBoundaries ){
     if(settings->yMin >= settings->yMax){
       success = false;
-      errorMessage->string = "Minimum y lower than maximum y.";
-      errorMessage->stringLength = strlen(errorMessage->string);
+      fprintf(stderr, "Minimum y lower than maximum y.");
     }
   }
 
@@ -1715,44 +1681,40 @@ bool BarPlotSettingsIsValid(BarPlotSettings *settings, StringReference *errorMes
   if( !settings->autoPadding ){
     if(2.0*settings->xPadding >= settings->width){
       success = false;
-      errorMessage->string = "Double the horizontal padding is larger than or equal to the width.";
-      errorMessage->stringLength = strlen(errorMessage->string);
+      fprintf(stderr, "Double the horizontal padding is larger than or equal to the width.");
     }
     if(2.0*settings->yPadding >= settings->height){
       success = false;
-      errorMessage->string = "Double the vertical padding is larger than or equal to the height.";
-      errorMessage->stringLength = strlen(errorMessage->string);
+      fprintf(stderr, "Double the vertical padding is larger than or equal to the height.");
     }
   }
 
   /* Check width and height. */
   if(settings->width < 0.0){
     success = false;
-    errorMessage->string = "Width lower than zero.";
-    errorMessage->stringLength = strlen(errorMessage->string);
+    fprintf(stderr,  "Width lower than zero.");
   }
   if(settings->height < 0.0){
     success = false;
-    errorMessage->string = "Height lower than zero.";
-    errorMessage->stringLength = strlen(errorMessage->string);
+    fprintf(stderr, "Height lower than zero.");
   }
 
   /* Check spacing */
   if( !settings->autoSpacing ){
     if(settings->groupSeparation < 0.0){
       success = false;
-      errorMessage->string = "Group separation lower than zero.";
-      errorMessage->stringLength = strlen(errorMessage->string);
+      fprintf(stderr, "Group separation lower than zero.");
     }
     if(settings->barSeparation < 0.0){
       success = false;
-      errorMessage->string = "Bar separation lower than zero.";
-      errorMessage->stringLength = strlen(errorMessage->string);
+      fprintf(stderr, "Bar separation lower than zero.");
     }
   }
 
   return success;
 }
+
+
 double GetMinimum(double *data, size_t dataLength){
   double i, minimum;
 
@@ -1763,6 +1725,8 @@ double GetMinimum(double *data, size_t dataLength){
 
   return minimum;
 }
+
+
 double GetMaximum(double *data, size_t dataLength){
   double i, maximum;
 
@@ -1773,199 +1737,13 @@ double GetMaximum(double *data, size_t dataLength){
 
   return maximum;
 }
+
+
 double RoundToDigits(double element, double digitsAfterPoint){
-  return Round(element*pow(10.0, digitsAfterPoint))/pow(10.0, digitsAfterPoint);
+  return round(element*pow(10.0, digitsAfterPoint))/pow(10.0, digitsAfterPoint);
 }
 
-void ExampleRegression(RGBABitmapImageReference *image){
-  char *xsStr, *ysStr;
-  size_t xsStrLength, ysStrLength;
-  double *xs, *ys, *xs2, *ys2;
-  size_t xsLength, ysLength, xs2Length, ys2Length;
-  StringReference *errorMessage;
-  ScatterPlotSettings *settings;
 
-  errorMessage = CreateStringReference(strparam(""));
-
-  xsStr = "20.1, 7.1, 16.1, 14.9, 16.7, 8.8, 9.7, 10.3, 22, 16.2, 12.1, 10.3, 14.5, 12.4, 9.6, 12.2, 10.8, 14.7, 19.7, 11.2, 10.1, 11, 12.2, 9.2, 23.5, 9.4, 15.3, 9.6, 11.1, 5.3, 7.8, 25.3, 16.5, 12.6, 12, 11.5, 17.1, 11.2, 12.2, 10.6, 19.9, 14.5, 15.5, 17.4, 8.4, 10.3, 10.2, 12.5, 16.7, 8.5, 12.2";
-  xsStrLength = strlen(xsStr);
-  ysStr = "31.5, 18.9, 35, 31.6, 22.6, 26.2, -14.1, 24.7, 44.8, 23.2, 31.4, 17.7, 18.4, 23.4, 22.6, 16.4, 21.4, 26.5, 31.7, 11.9, 20, 12.5, 18, 14.2, 37.6, 22.2, 17.8, 18.3, 28, 8.1, 14.7, 37.8, 15.7, 28.6, 11.7, 20.1, 30.1, 18.2, 17.2, 19.6, 29.2, 17.3, 28.2, 38.2, 17.8, 10.4, 19, 16.8, 21.5, 15.9, 17.7";
-  ysStrLength = strlen(ysStr);
-
-  xs = StringToNumberArray(&xsLength, xsStr, xsStrLength);
-  ys = StringToNumberArray(&ysLength, ysStr, ysStrLength);
-
-  settings = GetDefaultScatterPlotSettings();
-
-  settings->scatterPlotSeries = (ScatterPlotSeries**)calloc(sizeof(ScatterPlotSeries) * (2.0), 1);
-  settings->scatterPlotSeriesLength = 2.0;
-  settings->scatterPlotSeries[0] = (ScatterPlotSeries *)calloc(sizeof(ScatterPlotSeries), 1);
-  settings->scatterPlotSeries[0]->xs = xs;
-  settings->scatterPlotSeries[0]->xsLength = xsLength;
-  settings->scatterPlotSeries[0]->ys = ys;
-  settings->scatterPlotSeries[0]->ysLength = ysLength;
-  settings->scatterPlotSeries[0]->linearInterpolation = false;
-  settings->scatterPlotSeries[0]->pointType = "dotlinetoxaxis";
-  settings->scatterPlotSeries[0]->pointTypeLength = strlen(settings->scatterPlotSeries[0]->pointType);
-  settings->scatterPlotSeries[0]->lineThickness = 2.0;
-  settings->scatterPlotSeries[0]->color = CreateRGBColor(1.0, 0.0, 0.0);
-
-  /*OrdinaryLeastSquaresWithIntercept(); */
-  xs2 = (double*)calloc(sizeof(double) * (2.0), 1);
-  xs2Length = 2.0;
-  ys2 = (double*)calloc(sizeof(double) * (2.0), 1);
-  ys2Length = 2.0;
-
-  xs2[0] = 5.0;
-  ys2[0] = 12.0;
-  xs2[1] = 25.0;
-  ys2[1] = 39.0;
-
-  settings->scatterPlotSeries[1] = (ScatterPlotSeries *)calloc(sizeof(ScatterPlotSeries), 1);
-  settings->scatterPlotSeries[1]->xs = xs2;
-  settings->scatterPlotSeries[1]->xsLength = xs2Length;
-  settings->scatterPlotSeries[1]->ys = ys2;
-  settings->scatterPlotSeries[1]->ysLength = ys2Length;
-  settings->scatterPlotSeries[1]->linearInterpolation = true;
-  settings->scatterPlotSeries[1]->lineType = "solid";
-  settings->scatterPlotSeries[1]->lineTypeLength = strlen(settings->scatterPlotSeries[1]->lineType);
-  settings->scatterPlotSeries[1]->lineThickness = 2.0;
-  settings->scatterPlotSeries[1]->color = CreateRGBColor(0.0, 0.0, 1.0);
-
-  settings->autoBoundaries = true;
-  settings->yLabel = "";
-  settings->yLabelLength = strlen(settings->yLabel);
-  settings->xLabel = "";
-  settings->xLabelLength = strlen(settings->xLabel);
-  settings->title = "";
-  settings->titleLength = strlen(settings->title);
-  settings->width = 600.0;
-  settings->height = 400.0;
-
-  DrawScatterPlotFromSettings(image, settings);
-}
-void ExampleRegression2(RGBABitmapImageReference *image){
-  char *xsStr, *ysStr;
-  size_t xsStrLength, ysStrLength;
-  double *xs, *ys, *xs2, *ys2;
-  size_t xsLength, ysLength, xs2Length, ys2Length;
-  StringReference *errorMessage;
-  ScatterPlotSettings *settings;
-  NumberArrayReference *ys2Ref;
-
-  errorMessage = CreateStringReference(strparam(""));
-
-  xsStr = "20.1, 7.1, 16.1, 14.9, 16.7, 8.8, 9.7, 10.3, 22, 16.2, 12.1, 10.3, 14.5, 12.4, 9.6, 12.2, 10.8, 14.7, 19.7, 11.2, 10.1, 11, 12.2, 9.2, 23.5, 9.4, 15.3, 9.6, 11.1, 5.3, 7.8, 25.3, 16.5, 12.6, 12, 11.5, 17.1, 11.2, 12.2, 10.6, 19.9, 14.5, 15.5, 17.4, 8.4, 10.3, 10.2, 12.5, 16.7, 8.5, 12.2";
-  xsStrLength = strlen(xsStr);
-  ysStr = "31.5, 18.9, 35, 31.6, 22.6, 26.2, 14.1, 24.7, 44.8, 23.2, 31.4, 17.7, 18.4, 23.4, 22.6, 16.4, 21.4, 26.5, 31.7, 11.9, 20, 12.5, 18, 14.2, 37.6, 22.2, 17.8, 18.3, 28, 8.1, 14.7, 37.8, 15.7, 28.6, 11.7, 20.1, 30.1, 18.2, 17.2, 19.6, 29.2, 17.3, 28.2, 38.2, 17.8, 10.4, 19, 16.8, 21.5, 15.9, 17.7";
-  ysStrLength = strlen(ysStr);
-
-  xs = StringToNumberArray(&xsLength, xsStr, xsStrLength);
-  ys = StringToNumberArray(&ysLength, ysStr, ysStrLength);
-
-  ys2Ref = (NumberArrayReference *)calloc(sizeof(NumberArrayReference), 1);
-
-  settings = GetDefaultScatterPlotSettings();
-
-  settings->scatterPlotSeries = (ScatterPlotSeries**)calloc(sizeof(ScatterPlotSeries) * (2.0), 1);
-  settings->scatterPlotSeriesLength = 2.0;
-  settings->scatterPlotSeries[0] = (ScatterPlotSeries *)calloc(sizeof(ScatterPlotSeries), 1);
-  settings->scatterPlotSeries[0]->xs = xs;
-  settings->scatterPlotSeries[0]->xsLength = xsLength;
-  settings->scatterPlotSeries[0]->ys = ys;
-  settings->scatterPlotSeries[0]->ysLength = ysLength;
-  settings->scatterPlotSeries[0]->linearInterpolation = false;
-  settings->scatterPlotSeries[0]->pointType = "dots";
-  settings->scatterPlotSeries[0]->pointTypeLength = strlen(settings->scatterPlotSeries[0]->pointType);
-  settings->scatterPlotSeries[0]->color = CreateRGBColor(1.0, 0.0, 0.0);
-
-  Loess(xs, xsLength, ys, ysLength, 0.5, 2.0, 1e-12, ys2Ref);
-
-  xs2 = (double*)calloc(sizeof(double) * ((double)xsLength), 1);
-  xs2Length = (double)xsLength;
-  AssignNumberArray(xs2, xs2Length, xs, xsLength);
-  ys2 = ys2Ref->numberArray;
-  ys2Length = ys2Ref->numberArrayLength;
-
-  settings->scatterPlotSeries[1] = (ScatterPlotSeries *)calloc(sizeof(ScatterPlotSeries), 1);
-  settings->scatterPlotSeries[1]->xs = xs2;
-  settings->scatterPlotSeries[1]->xsLength = xs2Length;
-  settings->scatterPlotSeries[1]->ys = ys2;
-  settings->scatterPlotSeries[1]->ysLength = ys2Length;
-  settings->scatterPlotSeries[1]->linearInterpolation = true;
-  settings->scatterPlotSeries[1]->lineType = "solid";
-  settings->scatterPlotSeries[1]->lineTypeLength = strlen(settings->scatterPlotSeries[1]->lineType);
-  settings->scatterPlotSeries[1]->lineThickness = 2.0;
-  settings->scatterPlotSeries[1]->color = CreateRGBColor(0.0, 0.0, 1.0);
-
-  settings->autoBoundaries = true;
-  settings->yLabel = "";
-  settings->yLabelLength = strlen(settings->yLabel);
-  settings->xLabel = "";
-  settings->xLabelLength = strlen(settings->xLabel);
-  settings->title = "";
-  settings->titleLength = strlen(settings->title);
-  settings->width = 600.0;
-  settings->height = 400.0;
-
-  DrawScatterPlotFromSettings(image, settings);
-}
-void BarPlotExample(RGBABitmapImageReference *imageReference){
-  double *ys1, *ys2, *ys3;
-  size_t ys1Length, ys2Length, ys3Length;
-  BarPlotSettings *settings;
-  StringReference *errorMessage;
-
-  errorMessage = (StringReference *)calloc(sizeof(StringReference), 1);
-
-  ys1 = StringToNumberArray(&ys1Length, strparam("1, 2, 3, 4, 5"));
-  ys2 = StringToNumberArray(&ys2Length, strparam("5, 4, 3, 2, 1"));
-  ys3 = StringToNumberArray(&ys3Length, strparam("10, 2, 4, 3, 4"));
-
-  settings = GetDefaultBarPlotSettings();
-
-  settings->autoBoundaries = true;
-  /*settings.yMax; */
-  /*settings.yMin; */
-  settings->autoPadding = true;
-  /*settings.xPadding; */
-  /*settings.yPadding; */
-  settings->title = "title";
-  settings->titleLength = strlen(settings->title);
-  settings->showGrid = true;
-  settings->gridColor = GetGray(0.1);
-  settings->yLabel = "y label";
-  settings->yLabelLength = strlen(settings->yLabel);
-  settings->autoColor = true;
-  settings->grayscaleAutoColor = false;
-  settings->autoSpacing = true;
-  /*settings.groupSeparation; */
-  /*settings.barSeparation; */
-  settings->autoLabels = false;
-  settings->xLabels = (StringReference**)calloc(sizeof(StringReference) * (5.0), 1);
-  settings->xLabelsLength = 5.0;
-  settings->xLabels[0] = CreateStringReference(strparam("may 20"));
-  settings->xLabels[1] = CreateStringReference(strparam("jun 20"));
-  settings->xLabels[2] = CreateStringReference(strparam("jul 20"));
-  settings->xLabels[3] = CreateStringReference(strparam("aug 20"));
-  settings->xLabels[4] = CreateStringReference(strparam("sep 20"));
-  /*settings.colors; */
-  settings->barBorder = true;
-
-  settings->barPlotSeries = (BarPlotSeries**)calloc(sizeof(BarPlotSeries) * (3.0), 1);
-  settings->barPlotSeriesLength = 3.0;
-  settings->barPlotSeries[0] = GetDefaultBarPlotSeriesSettings();
-  settings->barPlotSeries[0]->ys = ys1;
-  settings->barPlotSeries[0]->ysLength = ys1Length;
-  settings->barPlotSeries[1] = GetDefaultBarPlotSeriesSettings();
-  settings->barPlotSeries[1]->ys = ys2;
-  settings->barPlotSeries[1]->ysLength = ys2Length;
-  settings->barPlotSeries[2] = GetDefaultBarPlotSeriesSettings();
-  settings->barPlotSeries[2]->ys = ys3;
-  settings->barPlotSeries[2]->ysLength = ys3Length;
-
-  DrawBarPlotFromSettings(imageReference, settings, errorMessage);
-}
 RGBA *GetBlack(){
   RGBA *black;
   black = (RGBA *)calloc(sizeof(RGBA), 1);
@@ -1975,6 +1753,8 @@ RGBA *GetBlack(){
   black->b = 0.0;
   return black;
 }
+
+
 RGBA *GetWhite(){
   RGBA *white;
   white = (RGBA *)calloc(sizeof(RGBA), 1);
@@ -1984,6 +1764,8 @@ RGBA *GetWhite(){
   white->b = 1.0;
   return white;
 }
+
+
 RGBA *GetTransparent(){
   RGBA *transparent;
   transparent = (RGBA *)calloc(sizeof(RGBA), 1);
@@ -1993,6 +1775,8 @@ RGBA *GetTransparent(){
   transparent->b = 0.0;
   return transparent;
 }
+
+
 RGBA *GetGray(double percentage){
   RGBA *black;
   black = (RGBA *)calloc(sizeof(RGBA), 1);
@@ -2002,6 +1786,8 @@ RGBA *GetGray(double percentage){
   black->b = 1.0 - percentage;
   return black;
 }
+
+
 RGBA *CreateRGBColor(double r, double g, double b){
   RGBA *color;
   color = (RGBA *)calloc(sizeof(RGBA), 1);
@@ -2011,6 +1797,8 @@ RGBA *CreateRGBColor(double r, double g, double b){
   color->b = b;
   return color;
 }
+
+
 RGBA *CreateRGBAColor(double r, double g, double b, double a){
   RGBA *color;
   color = (RGBA *)calloc(sizeof(RGBA), 1);
@@ -2020,6 +1808,8 @@ RGBA *CreateRGBAColor(double r, double g, double b, double a){
   color->b = b;
   return color;
 }
+
+
 RGBABitmapImage *CreateImage(double w, double h, RGBA *color){
   RGBABitmapImage *image;
   double i, j;
@@ -2036,13 +1826,19 @@ RGBABitmapImage *CreateImage(double w, double h, RGBA *color){
 
   return image;
 }
+
+
 void DeleteImage(RGBABitmapImage *image){
   free(image->pixels);
   free(image);
 }
+
+
 double ImageWidth(RGBABitmapImage *image){
   return image->xLength;
 }
+
+
 double ImageHeight(RGBABitmapImage *image){
   double height;
 
@@ -2054,17 +1850,21 @@ double ImageHeight(RGBABitmapImage *image){
 
   return height;
 }
+
+
 void SetPixel(RGBABitmapImage *image, double x, double y, RGBA *color){
   if(x >= 0.0 && x < ImageWidth(image) && y >= 0.0 && y < ImageHeight(image)){
 		int pixel = x + y * ImageWidth(image);
-		int r = Round(color->r * 255);
-		int g = Round(color->g * 255);
-		int b = Round(color->b * 255);
-		int a = Round(color->a * 255);
+		int r = round(color->r * 255);
+		int g = round(color->g * 255);
+		int b = round(color->b * 255);
+		int a = round(color->a * 255);
 
 		image->pixels[pixel] = (r << 24) | (g << 16) | (b << 8) | a;
   }
 }
+
+
 void DrawPixel(RGBABitmapImage *image, double x, double y, RGBA *color){
   double ra, ga, ba, aa;
   double rb, gb, bb, ab;
@@ -2097,15 +1897,21 @@ void DrawPixel(RGBABitmapImage *image, double x, double y, RGBA *color){
     newColor.b = bo;
     newColor.a = ao;
 
-		SetPixel(image, x, y, &newColor);
+    SetPixel(image, x, y, &newColor);
   }
 }
+
+
 double CombineAlpha(double as, double ad){
   return as + ad*(1.0 - as);
 }
+
+
 double AlphaBlend(double cs, double as, double cd, double ad, double ao){
   return (cs*as + cd*ad*(1.0 - as))/ao;
 }
+
+
 void DrawHorizontalLine1px(RGBABitmapImage *image, double x, double y, double length, RGBA *color){
   double i;
 
@@ -2113,6 +1919,8 @@ void DrawHorizontalLine1px(RGBABitmapImage *image, double x, double y, double le
     DrawPixel(image, x + i, y, color);
   }
 }
+
+
 void DrawVerticalLine1px(RGBABitmapImage *image, double x, double y, double height, RGBA *color){
   double i;
 
@@ -2120,12 +1928,16 @@ void DrawVerticalLine1px(RGBABitmapImage *image, double x, double y, double heig
     DrawPixel(image, x, y + i, color);
   }
 }
+
+
 void DrawRectangle1px(RGBABitmapImage *image, double x, double y, double width, double height, RGBA *color){
   DrawHorizontalLine1px(image, x, y, width + 1.0, color);
   DrawVerticalLine1px(image, x, y + 1.0, height + 1.0 - 1.0, color);
   DrawVerticalLine1px(image, x + width, y + 1.0, height + 1.0 - 1.0, color);
   DrawHorizontalLine1px(image, x + 1.0, y + height, width + 1.0 - 2.0, color);
 }
+
+
 void DrawImageOnImage(RGBABitmapImage *dst, RGBABitmapImage *src, double topx, double topy){
   double y, x;
 
@@ -2138,9 +1950,13 @@ void DrawImageOnImage(RGBABitmapImage *dst, RGBABitmapImage *src, double topx, d
     }
   }
 }
+
+
 void DrawLine1px(RGBABitmapImage *image, double x0, double y0, double x1, double y1, RGBA *color){
   XiaolinWusLineAlgorithm(image, x0, y0, x1, y1, color);
 }
+
+
 void XiaolinWusLineAlgorithm(RGBABitmapImage *image, double x0, double y0, double x1, double y1, RGBA *color){
   bool steep;
   double x, t, dx, dy, g, xEnd, yEnd, xGap, xpxl1, ypxl1, intery, xpxl2, ypxl2, olda;
@@ -2176,7 +1992,7 @@ void XiaolinWusLineAlgorithm(RGBABitmapImage *image, double x0, double y0, doubl
     g = 1.0;
   }
 
-  xEnd = Round(x0);
+  xEnd = round(x0);
   yEnd = y0 + g*(xEnd - x0);
   xGap = OneMinusFractionalPart(x0 + 0.5);
   xpxl1 = xEnd;
@@ -2190,7 +2006,7 @@ void XiaolinWusLineAlgorithm(RGBABitmapImage *image, double x0, double y0, doubl
   }
   intery = yEnd + g;
 
-  xEnd = Round(x1);
+  xEnd = round(x1);
   yEnd = y1 + g*(xEnd - x1);
   xGap = FractionalPart(x1 + 0.5);
   xpxl2 = xEnd;
@@ -2219,16 +2035,24 @@ void XiaolinWusLineAlgorithm(RGBABitmapImage *image, double x0, double y0, doubl
 
   color->a = olda;
 }
+
+
 double OneMinusFractionalPart(double x){
   return 1.0 - FractionalPart(x);
 }
+
+
 double FractionalPart(double x){
   return x - floor(x);
 }
+
+
 RGBA *SetBrightness(RGBA *color, double newBrightness){
   color->a = newBrightness;
   return color;
 }
+
+
 void DrawQuadraticBezierCurve(RGBABitmapImage *image, double x0, double y0, double cx, double cy, double x1, double y1, RGBA *color){
   double t, dt, dx, dy;
   NumberReference *xs, *ys, *xe, *ye;
@@ -2256,10 +2080,14 @@ void DrawQuadraticBezierCurve(RGBABitmapImage *image, double x0, double y0, doub
   free(xe);
   free(ye);
 }
+
+
 void QuadraticBezierPoint(double x0, double y0, double cx, double cy, double x1, double y1, double t, NumberReference *x, NumberReference *y){
   x->numberValue = pow(1.0 - t, 2.0)*x0 + (1.0 - t)*2.0*t*cx + pow(t, 2.0)*x1;
   y->numberValue = pow(1.0 - t, 2.0)*y0 + (1.0 - t)*2.0*t*cy + pow(t, 2.0)*y1;
 }
+
+
 void DrawCubicBezierCurve(RGBABitmapImage *image, double x0, double y0, double c0x, double c0y, double c1x, double c1y, double x1, double y1, RGBA *color){
   double t, dt, dx, dy;
   NumberReference *xs, *ys, *xe, *ye;
@@ -2287,11 +2115,15 @@ void DrawCubicBezierCurve(RGBABitmapImage *image, double x0, double y0, double c
   free(xe);
   free(ye);
 }
+
+
 void CubicBezierPoint(double x0, double y0, double c0x, double c0y, double c1x, double c1y, double x1, double y1, double t, NumberReference *x, NumberReference *y){
   x->numberValue = pow(1.0 - t, 3.0)*x0 + pow(1.0 - t, 2.0)*3.0*t*c0x + (1.0 - t)*3.0*pow(t, 2.0)*c1x + pow(t, 3.0)*x1;
 
   y->numberValue = pow(1.0 - t, 3.0)*y0 + pow(1.0 - t, 2.0)*3.0*t*c0y + (1.0 - t)*3.0*pow(t, 2.0)*c1y + pow(t, 3.0)*y1;
 }
+
+
 RGBABitmapImage *CopyImage(RGBABitmapImage *image){
   RGBABitmapImage *copy;
 
@@ -2301,6 +2133,8 @@ RGBABitmapImage *CopyImage(RGBABitmapImage *image){
 
   return copy;
 }
+
+
 RGBA* GetImagePixel(RGBABitmapImage *image, double x, double y){
 	RGBA *rgba;
 	int pixel;
@@ -2319,6 +2153,8 @@ RGBA* GetImagePixel(RGBABitmapImage *image, double x, double y){
 
   return rgba;
 }
+
+
 RGBA GetImagePixelStruct(RGBABitmapImage *image, double x, double y){
 	RGBA rgba;
 	int pixel;
@@ -2335,6 +2171,8 @@ RGBA GetImagePixelStruct(RGBABitmapImage *image, double x, double y){
 
   return rgba;
 }
+
+
 void HorizontalFlip(RGBABitmapImage *img){
   double y, x;
   double tmp;
@@ -2363,6 +2201,8 @@ void HorizontalFlip(RGBABitmapImage *img){
     }
   }
 }
+
+
 void DrawFilledRectangle(RGBABitmapImage *image, double x, double y, double w, double h, RGBA *color){
   double i, j;
 
@@ -2372,6 +2212,8 @@ void DrawFilledRectangle(RGBABitmapImage *image, double x, double y, double w, d
     }
   }
 }
+
+
 RGBABitmapImage *RotateAntiClockwise90Degrees(RGBABitmapImage *image){
   RGBABitmapImage *rotated;
   double x, y;
@@ -2386,9 +2228,13 @@ RGBABitmapImage *RotateAntiClockwise90Degrees(RGBABitmapImage *image){
 
   return rotated;
 }
+
+
 void DrawCircle(RGBABitmapImage *canvas, double xCenter, double yCenter, double radius, RGBA *color){
   DrawCircleBasicAlgorithm(canvas, xCenter, yCenter, radius, color);
 }
+
+
 void BresenhamsCircleDrawingAlgorithm(RGBABitmapImage *canvas, double xCenter, double yCenter, double radius, RGBA *color){
   double x, y, delta;
 
@@ -2415,6 +2261,8 @@ void BresenhamsCircleDrawingAlgorithm(RGBABitmapImage *canvas, double xCenter, d
     }
   }
 }
+
+
 void DrawCircleMidpointAlgorithm(RGBABitmapImage *canvas, double xCenter, double yCenter, double radius, RGBA *color){
   double d, x, y;
 
@@ -2440,6 +2288,8 @@ void DrawCircleMidpointAlgorithm(RGBABitmapImage *canvas, double xCenter, double
     }
   }
 }
+
+
 void DrawCircleBasicAlgorithm(RGBABitmapImage *canvas, double xCenter, double yCenter, double radius, RGBA *color){
   double pixels, a, da, dx, dy;
 
@@ -2464,9 +2314,13 @@ void DrawCircleBasicAlgorithm(RGBABitmapImage *canvas, double xCenter, double yC
     DrawPixel(canvas, floor(xCenter + dx), floor(yCenter + dy), color);
   }
 }
+
+
 void DrawFilledCircle(RGBABitmapImage *canvas, double x, double y, double r, RGBA *color){
   DrawFilledCircleBasicAlgorithm(canvas, x, y, r, color);
 }
+
+
 void DrawFilledCircleMidpointAlgorithm(RGBABitmapImage *canvas, double xCenter, double yCenter, double radius, RGBA *color){
   double d, x, y;
 
@@ -2488,6 +2342,8 @@ void DrawFilledCircleMidpointAlgorithm(RGBABitmapImage *canvas, double xCenter, 
     }
   }
 }
+
+
 void DrawFilledCircleBasicAlgorithm(RGBABitmapImage *canvas, double xCenter, double yCenter, double radius, RGBA *color){
   double pixels, a, da, dx, dy;
 
@@ -2513,6 +2369,8 @@ void DrawFilledCircleBasicAlgorithm(RGBABitmapImage *canvas, double xCenter, dou
     DrawVerticalLine1px(canvas, floor(xCenter - dx), floor(yCenter - dy), floor(2.0*dy) + 1.0, color);
   }
 }
+
+
 void DrawTriangle(RGBABitmapImage *canvas, double xCenter, double yCenter, double height, RGBA *color){
   double x1, y1, x2, y2, x3, y3;
 
@@ -2527,6 +2385,8 @@ void DrawTriangle(RGBABitmapImage *canvas, double xCenter, double yCenter, doubl
   DrawLine1px(canvas, x1, y1, x3, y3, color);
   DrawLine1px(canvas, x2, y2, x3, y3, color);
 }
+
+
 void DrawFilledTriangle(RGBABitmapImage *canvas, double xCenter, double yCenter, double height, RGBA *color){
   double i, offset, x1, y1;
 
@@ -2538,17 +2398,27 @@ void DrawFilledTriangle(RGBABitmapImage *canvas, double xCenter, double yCenter,
     DrawHorizontalLine1px(canvas, x1 - offset, y1 + i, 2.0*offset, color);
   }
 }
+
+
 void DrawLine(RGBABitmapImage *canvas, double x1, double y1, double x2, double y2, double thickness, RGBA *color){
   DrawLineBresenhamsAlgorithmThick(canvas, x1, y1, x2, y2, thickness, color);
 }
+
+
+#define sign(a)     \
+    a > 0 ? 1  :    \
+    a < 0 ? -1 :    \
+             0
+
+
 void DrawLineBresenhamsAlgorithmThick(RGBABitmapImage *canvas, double x1, double y1, double x2, double y2, double thickness, RGBA *color){
   double x, y, dx, dy, incX, incY, pdx, pdy, es, el, err, t, r;
 
   dx = x2 - x1;
   dy = y2 - y1;
 
-  incX = Sign(dx);
-  incY = Sign(dy);
+  incX = sign(dx);
+  incY = sign(dy);
 
   dx = fabs(dx);
   dy = fabs(dy);
@@ -2599,14 +2469,16 @@ void DrawLineBresenhamsAlgorithmThick(RGBABitmapImage *canvas, double x1, double
     }
   }
 }
+
+
 void DrawLineBresenhamsAlgorithm(RGBABitmapImage *canvas, double x1, double y1, double x2, double y2, RGBA *color){
   double x, y, dx, dy, incX, incY, pdx, pdy, es, el, err, t;
 
   dx = x2 - x1;
   dy = y2 - y1;
 
-  incX = Sign(dx);
-  incY = Sign(dy);
+  incX = sign(dx);
+  incY = sign(dy);
 
   dx = fabs(dx);
   dy = fabs(dy);
@@ -2642,14 +2514,16 @@ void DrawLineBresenhamsAlgorithm(RGBABitmapImage *canvas, double x1, double y1, 
     DrawPixel(canvas, x, y, color);
   }
 }
+
+
 void DrawLineBresenhamsAlgorithmThickPatterned(RGBABitmapImage *canvas, double x1, double y1, double x2, double y2, double thickness, bool *pattern, size_t patternLength, NumberReference *offset, RGBA *color){
   double x, y, dx, dy, incX, incY, pdx, pdy, es, el, err, t, r;
 
   dx = x2 - x1;
   dy = y2 - y1;
 
-  incX = Sign(dx);
-  incY = Sign(dy);
+  incX = sign(dx);
+  incY = sign(dy);
 
   dx = fabs(dx);
   dy = fabs(dy);
@@ -2708,6 +2582,8 @@ void DrawLineBresenhamsAlgorithmThickPatterned(RGBABitmapImage *canvas, double x
     }
   }
 }
+
+
 bool *GetLinePattern5(size_t *returnArrayLength){
   bool *pattern;
   size_t patternLength;
@@ -2738,6 +2614,8 @@ bool *GetLinePattern5(size_t *returnArrayLength){
   *returnArrayLength = patternLength;
   return pattern;
 }
+
+
 bool *GetLinePattern4(size_t *returnArrayLength){
   bool *pattern;
   size_t patternLength;
@@ -2762,6 +2640,8 @@ bool *GetLinePattern4(size_t *returnArrayLength){
   *returnArrayLength = patternLength;
   return pattern;
 }
+
+
 bool *GetLinePattern3(size_t *returnArrayLength){
   bool *pattern;
   size_t patternLength;
@@ -2786,6 +2666,8 @@ bool *GetLinePattern3(size_t *returnArrayLength){
   *returnArrayLength = patternLength;
   return pattern;
 }
+
+
 bool *GetLinePattern2(size_t *returnArrayLength){
   bool *pattern;
   size_t patternLength;
@@ -2801,6 +2683,8 @@ bool *GetLinePattern2(size_t *returnArrayLength){
   *returnArrayLength = patternLength;
   return pattern;
 }
+
+
 bool *GetLinePattern1(size_t *returnArrayLength){
   bool *pattern;
   size_t patternLength;
@@ -2820,300 +2704,20 @@ bool *GetLinePattern1(size_t *returnArrayLength){
   *returnArrayLength = patternLength;
   return pattern;
 }
-/*RGBABitmapImage *Blur(RGBABitmapImage *src, double pixels){
-  RGBABitmapImage *dst;
-  double x, y, w, h;
 
-  w = ImageWidth(src);
-  h = ImageHeight(src);
-  dst = CreateImage(w, h, GetTransparent());
 
-  for(x = 0.0; x < w; x = x + 1.0){
-    for(y = 0.0; y < h; y = y + 1.0){
-      SetPixel(dst, x, y, CreateBlurForPoint(src, x, y, pixels));
-    }
-  }
-
-  return dst;
-}
-RGBA *CreateBlurForPoint(RGBABitmapImage *src, double x, double y, double pixels){
-  RGBA *rgba;
-  double i, j, countColor, countTransparent;
-  double fromx, tox, fromy, toy;
-  double w, h;
-  double alpha;
-
-  w = (double)src->xLength;
-  h = (double)src->x[0]->yLength;
-
-  rgba = (RGBA *)calloc(sizeof(RGBA), 1);
-  rgba->r = 0.0;
-  rgba->g = 0.0;
-  rgba->b = 0.0;
-  rgba->a = 0.0;
-
-  fromx = x - pixels;
-  fromx = fmax(fromx, 0.0);
-
-  tox = x + pixels;
-  tox = fmin(tox, w - 1.0);
-
-  fromy = y - pixels;
-  fromy = fmax(fromy, 0.0);
-
-  toy = y + pixels;
-  toy = fmin(toy, h - 1.0);
-
-  countColor = 0.0;
-  countTransparent = 0.0;
-  for(i = fromx; i < tox; i = i + 1.0){
-    for(j = fromy; j < toy; j = j + 1.0){
-      alpha = src->x[(int)(i)]->y[(int)(j)]->a;
-      if(alpha > 0.0){
-        rgba->r = rgba->r + src->x[(int)(i)]->y[(int)(j)]->r;
-        rgba->g = rgba->g + src->x[(int)(i)]->y[(int)(j)]->g;
-        rgba->b = rgba->b + src->x[(int)(i)]->y[(int)(j)]->b;
-        countColor = countColor + 1.0;
-      }
-      rgba->a = rgba->a + alpha;
-      countTransparent = countTransparent + 1.0;
-    }
-  }
-
-  if(countColor > 0.0){
-    rgba->r = rgba->r/countColor;
-    rgba->g = rgba->g/countColor;
-    rgba->b = rgba->b/countColor;
-  }else{
-    rgba->r = 0.0;
-    rgba->g = 0.0;
-    rgba->b = 0.0;
-  }
-
-  if(countTransparent > 0.0){
-    rgba->a = rgba->a/countTransparent;
-  }else{
-    rgba->a = 0.0;
-  }
-
-  return rgba;
-}*/
-char *CreateStringScientificNotationDecimalFromNumber(size_t *returnArrayLength, double decimal){
-  StringReference *mantissaReference, *exponentReference;
-  double multiplier, inc;
-  double exponent;
-  bool done, isPositive;
-  char *result;
-  size_t resultLength;
-
-  mantissaReference = (StringReference *)calloc(sizeof(StringReference), 1);
-  exponentReference = (StringReference *)calloc(sizeof(StringReference), 1);
-  result = (char*)calloc(sizeof(char) * (0.0), 1);
-  resultLength = 0.0;
-  done = false;
-  exponent = 0.0;
-
-  if(decimal < 0.0){
-    isPositive = false;
-    decimal =  -decimal;
-  }else{
-    isPositive = true;
-  }
-
-  if(decimal == 0.0){
-    done = true;
-  }
-
-  if( !done ){
-    multiplier = 0.0;
-    inc = 0.0;
-
-    if(decimal < 1.0){
-      multiplier = 10.0;
-      inc =  -1.0;
-    }else if(decimal >= 10.0){
-      multiplier = 0.1;
-      inc = 1.0;
-    }else{
-      done = true;
-    }
-
-    if( !done ){
-      exponent = round(log10(decimal));
-      exponent = fmin(99.0, exponent);
-      exponent = fmax( -99.0, exponent);
-
-      decimal = decimal/pow(10.0, exponent);
-
-      /* Adjust */
-      for(; (decimal >= 10.0 || decimal < 1.0) && fabs(exponent) < 99.0; ){
-        decimal = decimal*multiplier;
-        exponent = exponent + inc;
-      }
-    }
-  }
-
-  CreateStringFromNumberWithCheck(decimal, 10.0, mantissaReference);
-
-  CreateStringFromNumberWithCheck(exponent, 10.0, exponentReference);
-
-  if( !isPositive ){
-    result = AppendString(&resultLength, result, resultLength, strparam("-"));
-  }
-
-  result = AppendString(&resultLength, result, resultLength, mantissaReference->string, mantissaReference->stringLength);
-  result = AppendString(&resultLength, result, resultLength, strparam("e"));
-  result = AppendString(&resultLength, result, resultLength, exponentReference->string, exponentReference->stringLength);
-
-  *returnArrayLength = resultLength;
-  return result;
-}
 char *CreateStringDecimalFromNumber(size_t *returnArrayLength, double decimal){
-  StringReference *stringReference;
+  StringReference *stringReference = (StringReference *)calloc(sizeof(StringReference), 1);
 
-  stringReference = (StringReference *)calloc(sizeof(StringReference), 1);
-
-  /* This will succeed because base = 10. */
-  CreateStringFromNumberWithCheck(decimal, 10.0, stringReference);
+    stringReference->stringLength = snprintf(NULL, 0, "%.1f", decimal);
+    stringReference->string = malloc(sizeof(char) * (stringReference->stringLength + 1));
+    snprintf(stringReference->string, stringReference->stringLength + 1, "%.1f", decimal);
 
   *returnArrayLength = stringReference->stringLength;
   return stringReference->string;
 }
-bool CreateStringFromNumberWithCheck(double decimal, double base, StringReference *stringReference){
-  DynamicArrayCharacters *string;
-  double maximumDigits;
-  double digitPosition;
-  bool hasPrintedPoint, isPositive;
-  double i, d;
-  bool success;
-  CharacterReference *characterReference;
-  char c;
 
-  string = CreateDynamicArrayCharacters();
-  isPositive = true;
 
-  if(decimal < 0.0){
-    isPositive = false;
-    decimal =  -decimal;
-  }
-
-  if(decimal == 0.0){
-    DynamicArrayAddCharacter(string, '0');
-    success = true;
-  }else{
-    characterReference = (CharacterReference *)calloc(sizeof(CharacterReference), 1);
-
-    if(IsInteger(base)){
-      success = true;
-
-      maximumDigits = GetMaximumDigitsForBase(base);
-
-      digitPosition = GetFirstDigitPosition(decimal, base);
-
-      decimal = round(decimal*pow(base, maximumDigits - digitPosition - 1.0));
-
-      hasPrintedPoint = false;
-
-      if( !isPositive ){
-        DynamicArrayAddCharacter(string, '-');
-      }
-
-      /* Print leading zeros. */
-      if(digitPosition < 0.0){
-        DynamicArrayAddCharacter(string, '0');
-        DynamicArrayAddCharacter(string, '.');
-        hasPrintedPoint = true;
-        for(i = 0.0; i <  -digitPosition - 1.0; i = i + 1.0){
-          DynamicArrayAddCharacter(string, '0');
-        }
-      }
-
-      /* Print number. */
-      for(i = 0.0; i < maximumDigits && success; i = i + 1.0){
-        d = floor(decimal/pow(base, maximumDigits - i - 1.0));
-
-        if(d >= base){
-          d = base - 1.0;
-        }
-
-        if( !hasPrintedPoint  && digitPosition - i + 1.0 == 0.0){
-          if(decimal != 0.0){
-            DynamicArrayAddCharacter(string, '.');
-          }
-          hasPrintedPoint = true;
-        }
-
-        if(decimal == 0.0 && hasPrintedPoint){
-        }else{
-          success = GetSingleDigitCharacterFromNumberWithCheck(d, base, characterReference);
-          if(success){
-            c = characterReference->characterValue;
-            DynamicArrayAddCharacter(string, c);
-          }
-        }
-
-        if(success){
-          decimal = decimal - d*pow(base, maximumDigits - i - 1.0);
-        }
-      }
-
-      if(success){
-        /* Print trailing zeros. */
-        for(i = 0.0; i < digitPosition - maximumDigits + 1.0; i = i + 1.0){
-          DynamicArrayAddCharacter(string, '0');
-        }
-      }
-    }else{
-      success = false;
-    }
-  }
-
-  if(success){
-    stringReference->string = DynamicArrayCharactersToArray(&stringReference->stringLength, string);
-    FreeDynamicArrayCharacters(string);
-  }
-
-  /* Done */
-  return success;
-}
-double GetMaximumDigitsForBase(double base){
-  double t;
-
-  t = pow(10.0, 15.0);
-  return floor(log10(t)/log10(base));
-}
-double GetFirstDigitPosition(double decimal, double base){
-  double power;
-  double t;
-
-  power = ceil(log10(decimal)/log10(base));
-
-  t = decimal*pow(base,  -power);
-  if(t < base && t >= 1.0){
-  }else if(t >= base){
-    power = power + 1.0;
-  }else if(t < 1.0){
-    power = power - 1.0;
-  }
-
-  return power;
-}
-bool GetSingleDigitCharacterFromNumberWithCheck(double c, double base, CharacterReference *characterReference){
-  char *numberTable;
-  size_t numberTableLength;
-  bool success;
-
-  numberTable = GetDigitCharacterTable(&numberTableLength);
-
-  if(c < base || c < (double)numberTableLength){
-    success = true;
-    characterReference->characterValue = numberTable[(int)(c)];
-  }else{
-    success = false;
-  }
-
-  return success;
-}
 char *GetDigitCharacterTable(size_t *returnArrayLength){
   char *numberTable;
   size_t numberTableLength;
@@ -3124,9 +2728,13 @@ char *GetDigitCharacterTable(size_t *returnArrayLength){
   *returnArrayLength = numberTableLength;
   return numberTable;
 }
-bool CreateNumberFromDecimalStringWithCheck(char *string, size_t stringLength, NumberReference *decimalReference, StringReference *errorMessage){
-  return CreateNumberFromStringWithCheck(string, stringLength, 10.0, decimalReference, errorMessage);
+
+
+bool CreateNumberFromDecimalStringWithCheck(char *string, size_t stringLength, NumberReference *decimalReference){
+  return CreateNumberFromStringWithCheck(string, stringLength, 10.0, decimalReference);
 }
+
+
 double CreateNumberFromDecimalString(char *string, size_t stringLength){
   NumberReference *doubleReference;
   StringReference *stringReference;
@@ -3134,7 +2742,7 @@ double CreateNumberFromDecimalString(char *string, size_t stringLength){
 
   doubleReference = CreateNumberReference(0.0);
   stringReference = CreateStringReference(strparam(""));
-  CreateNumberFromStringWithCheck(string, stringLength, 10.0, doubleReference, stringReference);
+  CreateNumberFromStringWithCheck(string, stringLength, 10.0, doubleReference);
   number = doubleReference->numberValue;
 
   free(doubleReference);
@@ -3142,7 +2750,9 @@ double CreateNumberFromDecimalString(char *string, size_t stringLength){
 
   return number;
 }
-bool CreateNumberFromStringWithCheck(char *string, size_t stringLength, double base, NumberReference *numberReference, StringReference *errorMessage){
+
+
+bool CreateNumberFromStringWithCheck(char *string, size_t stringLength, double base, NumberReference *numberReference){
   bool success;
   BooleanReference *numberIsPositive, *exponentIsPositive;
   NumberArrayReference *beforePoint, *afterPoint, *exponent;
@@ -3154,19 +2764,20 @@ bool CreateNumberFromStringWithCheck(char *string, size_t stringLength, double b
   exponent = (NumberArrayReference *)calloc(sizeof(NumberArrayReference), 1);
 
   if(base >= 2.0 && base <= 36.0){
-    success = ExtractPartsFromNumberString(string, stringLength, base, numberIsPositive, beforePoint, afterPoint, exponentIsPositive, exponent, errorMessage);
+    success = ExtractPartsFromNumberString(string, stringLength, base, numberIsPositive, beforePoint, afterPoint, exponentIsPositive, exponent);
 
     if(success){
       numberReference->numberValue = CreateNumberFromParts(base, numberIsPositive->booleanValue, beforePoint->numberArray, beforePoint->numberArrayLength, afterPoint->numberArray, afterPoint->numberArrayLength, exponentIsPositive->booleanValue, exponent->numberArray, exponent->numberArrayLength);
     }
   }else{
     success = false;
-    errorMessage->string = "Base must be from 2 to 36.";
-    errorMessage->stringLength = strlen(errorMessage->string);
+    fprintf(stderr, "Base must be from 2 to 36.");
   }
 
   return success;
 }
+
+
 double CreateNumberFromParts(double base, bool numberIsPositive, double *beforePoint, size_t beforePointLength, double *afterPoint, size_t afterPointLength, bool exponentIsPositive, double *exponent, size_t exponentLength){
   double n, i, p, e;
 
@@ -3205,7 +2816,9 @@ double CreateNumberFromParts(double base, bool numberIsPositive, double *beforeP
 
   return n;
 }
-bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanReference *numberIsPositive, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages){
+
+
+bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanReference *numberIsPositive, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent){
   double i, j, count;
   bool success, done, complete;
 
@@ -3224,8 +2837,7 @@ bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanR
     success = true;
   }else{
     success = false;
-    errorMessages->string = "Number cannot have length zero.";
-    errorMessages->stringLength = strlen(errorMessages->string);
+    fprintf(stderr,  "Number cannot have length zero.");
   }
 
   if(success){
@@ -3261,8 +2873,7 @@ bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanR
       }
     }else{
       success = false;
-      errorMessages->string = "Number must have at least one number after the optional sign.";
-      errorMessages->stringLength = strlen(errorMessages->string);
+      fprintf(stderr, "Number must have at least one number after the optional sign.");
     }
   }
 
@@ -3301,13 +2912,11 @@ bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanR
           }
         }else{
           success = false;
-          errorMessages->string = "There must be at least one digit after the decimal point.";
-          errorMessages->stringLength = strlen(errorMessages->string);
+          fprintf(stderr, "There must be at least one digit after the decimal point.");
         }
       }else{
         success = false;
-        errorMessages->string = "There must be at least one digit after the decimal point.";
-        errorMessages->stringLength = strlen(errorMessages->string);
+        fprintf(stderr, "There must be at least one digit after the decimal point.");
       }
     }else if(base <= 14.0 && (n[(int)(i)] == 'e' || n[(int)(i)] == 'E')){
       if(i < (double)nLength){
@@ -3316,13 +2925,11 @@ bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanR
         afterPoint->numberArrayLength = 0.0;
       }else{
         success = false;
-        errorMessages->string = "There must be at least one digit after the exponent.";
-        errorMessages->stringLength = strlen(errorMessages->string);
+        fprintf(stderr, "There must be at least one digit after the exponent.");
       }
     }else{
       success = false;
-      errorMessages->string = "Expected decimal point or exponent symbol.";
-      errorMessages->stringLength = strlen(errorMessages->string);
+      fprintf(stderr, "Expected decimal point or exponent symbol.");
     }
   }
 
@@ -3364,33 +2971,30 @@ bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanR
               success = true;
             }else{
               success = false;
-              errorMessages->string = "There cannot be any characters past the exponent of the number.";
-              errorMessages->stringLength = strlen(errorMessages->string);
+              fprintf(stderr, "There cannot be any characters past the exponent of the number.");
             }
           }else{
             success = false;
-            errorMessages->string = "There must be at least one digit after the decimal point.";
-            errorMessages->stringLength = strlen(errorMessages->string);
+            fprintf(stderr, "There must be at least one digit after the decimal point.");
           }
         }else{
           success = false;
-          errorMessages->string = "There must be at least one digit after the exponent symbol.";
-          errorMessages->stringLength = strlen(errorMessages->string);
+          fprintf(stderr, "There must be at least one digit after the exponent symbol.");
         }
       }else{
         success = false;
-        errorMessages->string = "There must be at least one digit after the exponent symbol.";
-        errorMessages->stringLength = strlen(errorMessages->string);
+        fprintf(stderr, "There must be at least one digit after the exponent symbol.");
       }
     }else{
       success = false;
-      errorMessages->string = "Expected exponent symbol.";
-      errorMessages->stringLength = strlen(errorMessages->string);
+      fprintf(stderr, "Expected exponent symbol.");
     }
   }
 
   return success;
 }
+
+
 double GetNumberFromNumberCharacterForBase(char c, double base){
   char *numberTable;
   size_t numberTableLength;
@@ -3408,6 +3012,8 @@ double GetNumberFromNumberCharacterForBase(char c, double base){
 
   return position;
 }
+
+
 bool CharacterIsNumberCharacterInBase(char c, double base){
   char *numberTable;
   size_t numberTableLength;
@@ -3425,27 +3031,28 @@ bool CharacterIsNumberCharacterInBase(char c, double base){
 
   return found;
 }
+
+
 double *StringToNumberArray(size_t *returnArrayLength, char *str, size_t strLength){
   NumberArrayReference *numberArrayReference;
-  StringReference *stringReference;
   double *numbers;
   size_t numbersLength;
 
   numberArrayReference = (NumberArrayReference *)calloc(sizeof(NumberArrayReference), 1);
-  stringReference = (StringReference *)calloc(sizeof(StringReference), 1);
 
-  StringToNumberArrayWithCheck(str, strLength, numberArrayReference, stringReference);
+  StringToNumberArrayWithCheck(str, strLength, numberArrayReference);
 
   numbers = numberArrayReference->numberArray;
   numbersLength = numberArrayReference->numberArrayLength;
 
   free(numberArrayReference);
-  free(stringReference);
 
   *returnArrayLength = numbersLength;
   return numbers;
 }
-bool StringToNumberArrayWithCheck(char *str, size_t strLength, NumberArrayReference *numberArrayReference, StringReference *errorMessage){
+
+
+bool StringToNumberArrayWithCheck(char *str, size_t strLength, NumberArrayReference *numberArrayReference){
   StringReference **numberStrings;
   size_t numberStringsLength;
   double *numbers;
@@ -3467,7 +3074,7 @@ bool StringToNumberArrayWithCheck(char *str, size_t strLength, NumberArrayRefere
     numberString = numberStrings[(int)(i)]->string;
     numberStringLength = numberStrings[(int)(i)]->stringLength;
     trimmedNumberString = Trim(&trimmedNumberStringLength, numberString, numberStringLength);
-    success = CreateNumberFromDecimalStringWithCheck(trimmedNumberString, trimmedNumberStringLength, numberReference, errorMessage);
+    success = CreateNumberFromDecimalStringWithCheck(trimmedNumberString, trimmedNumberStringLength, numberReference);
     numbers[(int)(i)] = numberReference->numberValue;
 
     FreeStringReference(numberStrings[(int)(i)]);
@@ -3482,109 +3089,41 @@ bool StringToNumberArrayWithCheck(char *str, size_t strLength, NumberArrayRefere
 
   return success;
 }
-void QuickSortStrings(StringArrayReference *list){
-  QuickSortStringsBounds(list, 0.0, (double)list->stringArrayLength - 1.0);
-}
-void QuickSortStringsBounds(StringArrayReference *A, double lo, double hi){
-  double p;
 
-  if(lo < hi){
-    p = QuickSortStringsPartition(A, lo, hi);
-    QuickSortStringsBounds(A, lo, p - 1.0);
-    QuickSortStringsBounds(A, p + 1.0, hi);
-  }
-}
-double QuickSortStringsPartition(StringArrayReference *A, double lo, double hi){
-  char *pivot;
-  size_t pivotLength;
-  double i, j;
 
-  pivot = A->stringArray[(int)(hi)]->string;
-  pivotLength = A->stringArray[(int)(hi)]->stringLength;
-  i = lo - 1.0;
-  for(j = lo; j <= hi - 1.0; j = j + 1.0){
-    if(StringIsBefore(A->stringArray[(int)(j)]->string, A->stringArray[(int)(j)]->stringLength, pivot, pivotLength)){
-      i = i + 1.0;
-      aSwapElementsOfStringArray(A, i, j);
-    }
-  }
-  aSwapElementsOfStringArray(A, i + 1.0, hi);
-
-  return i + 1.0;
-}
-double *QuickSortStringsWithIndexes(size_t *returnArrayLength, StringArrayReference *A){
-  double *indexes;
-  size_t indexesLength;
-  double i;
-
-  indexes = (double*)calloc(sizeof(double) * ((double)A->stringArrayLength), 1);
-  indexesLength = (double)A->stringArrayLength;
-
-  for(i = 0.0; i < (double)A->stringArrayLength; i = i + 1.0){
-    indexes[(int)(i)] = i;
-  }
-
-  QuickSortStringsBoundsWithIndexes(A, indexes, indexesLength, 0.0, (double)A->stringArrayLength - 1.0);
-
-  *returnArrayLength = indexesLength;
-  return indexes;
-}
-void QuickSortStringsBoundsWithIndexes(StringArrayReference *A, double *indexes, size_t indexesLength, double lo, double hi){
-  double p;
-
-  if(lo < hi){
-    p = QuickSortStringsPartitionWithIndexes(A, indexes, indexesLength, lo, hi);
-    QuickSortStringsBoundsWithIndexes(A, indexes, indexesLength, lo, p - 1.0);
-    QuickSortStringsBoundsWithIndexes(A, indexes, indexesLength, p + 1.0, hi);
-  }
-}
-double QuickSortStringsPartitionWithIndexes(StringArrayReference *A, double *indexes, size_t indexesLength, double lo, double hi){
-  double i, j;
-  char *pivot;
-  size_t pivotLength;
-
-  pivot = A->stringArray[(int)(hi)]->string;
-  pivotLength = A->stringArray[(int)(hi)]->stringLength;
-  i = lo - 1.0;
-  for(j = lo; j <= hi - 1.0; j = j + 1.0){
-    if(StringIsBefore(A->stringArray[(int)(j)]->string, A->stringArray[(int)(j)]->stringLength, pivot, pivotLength)){
-      i = i + 1.0;
-      aSwapElementsOfStringArray(A, i, j);
-      aSwapElementsOfNumberArray(indexes, indexesLength, i, j);
-    }
-  }
-  aSwapElementsOfStringArray(A, i + 1.0, hi);
-  aSwapElementsOfNumberArray(indexes, indexesLength, i + 1.0, hi);
-
-  return i + 1.0;
-}
 void QuickSortNumbers(double *list, size_t listLength){
   QuickSortNumbersBounds(list, listLength, 0.0, (double)listLength - 1.0);
 }
-void QuickSortNumbersBounds(double *A, size_t ALength, double lo, double hi){
-  double p;
 
-  if(lo < hi){
-    p = QuickSortNumbersPartition(A, ALength, lo, hi);
-    QuickSortNumbersBounds(A, ALength, lo, p - 1.0);
-    QuickSortNumbersBounds(A, ALength, p + 1.0, hi);
-  }
-}
-double QuickSortNumbersPartition(double *A, size_t ALength, double lo, double hi){
+
+static inline double QuickSortNumbersPartition(double *A, double lo, double hi){
   double pivot, lowPos, j;
 
   pivot = A[(int)(hi)];
   lowPos = lo;
   for(j = lo; j <= hi - 1.0; j = j + 1.0){
     if(A[(int)(j)] < pivot){
-      aSwapElementsOfNumberArray(A, ALength, lowPos, j);
+      aSwapElementsOfNumberArray(A, lowPos, j);
       lowPos = lowPos + 1.0;
     }
   }
-  aSwapElementsOfNumberArray(A, ALength, lowPos, hi);
+  aSwapElementsOfNumberArray(A, lowPos, hi);
 
   return lowPos;
 }
+
+
+void QuickSortNumbersBounds(double *A, size_t ALength, double lo, double hi){
+  double p;
+
+  if(lo < hi){
+    p = QuickSortNumbersPartition(A, lo, hi);
+    QuickSortNumbersBounds(A, ALength, lo, p - 1.0);
+    QuickSortNumbersBounds(A, ALength, p + 1.0, hi);
+  }
+}
+
+
 double *QuickSortNumbersWithIndexes(size_t *returnArrayLength, double *A, size_t ALength){
   double *indexes;
   size_t indexesLength;
@@ -3602,16 +3141,9 @@ double *QuickSortNumbersWithIndexes(size_t *returnArrayLength, double *A, size_t
   *returnArrayLength = indexesLength;
   return indexes;
 }
-void QuickSortNumbersBoundsWithIndexes(double *A, size_t ALength, double *indexes, size_t indexesLength, double lo, double hi){
-  double p;
 
-  if(lo < hi){
-    p = QuickSortNumbersPartitionWithIndexes(A, ALength, indexes, indexesLength, lo, hi);
-    QuickSortNumbersBoundsWithIndexes(A, ALength, indexes, indexesLength, lo, p - 1.0);
-    QuickSortNumbersBoundsWithIndexes(A, ALength, indexes, indexesLength, p + 1.0, hi);
-  }
-}
-double QuickSortNumbersPartitionWithIndexes(double *A, size_t ALength, double *indexes, size_t indexesLength, double lo, double hi){
+
+static inline double QuickSortNumbersPartitionWithIndexes(double *A, double *indexes, double lo, double hi){
   double pivot, i, j;
 
   pivot = A[(int)(hi)];
@@ -3619,489 +3151,31 @@ double QuickSortNumbersPartitionWithIndexes(double *A, size_t ALength, double *i
   for(j = lo; j <= hi - 1.0; j = j + 1.0){
     if(A[(int)(j)] < pivot){
       i = i + 1.0;
-      aSwapElementsOfNumberArray(A, ALength, i, j);
-      aSwapElementsOfNumberArray(indexes, indexesLength, i, j);
+      aSwapElementsOfNumberArray(A, i, j);
+      aSwapElementsOfNumberArray(indexes, i, j);
     }
   }
-  aSwapElementsOfNumberArray(A, ALength, i + 1.0, hi);
-  aSwapElementsOfNumberArray(indexes, indexesLength, i + 1.0, hi);
+  aSwapElementsOfNumberArray(A, i + 1.0, hi);
+  aSwapElementsOfNumberArray(indexes, i + 1.0, hi);
 
   return i + 1.0;
 }
-double Negate(double x){
-  return  -x;
-}
-double Positive(double x){
-  return  +x;
-}
-double Factorial(double x){
-  double i, f;
 
-  f = 1.0;
 
-  for(i = 2.0; i <= x; i = i + 1.0){
-    f = f*i;
+void QuickSortNumbersBoundsWithIndexes(double *A, size_t ALength, double *indexes, size_t indexesLength, double lo, double hi){
+  double p;
+
+  if(lo < hi){
+    p = QuickSortNumbersPartitionWithIndexes(A, indexes, lo, hi);
+    QuickSortNumbersBoundsWithIndexes(A, ALength, indexes, indexesLength, lo, p - 1.0);
+    QuickSortNumbersBoundsWithIndexes(A, ALength, indexes, indexesLength, p + 1.0, hi);
   }
-
-  return f;
 }
-double Round(double x){
-  return floor(x + 0.5);
-}
-double BankersRound(double x){
-  double r;
 
-  if(Absolute(x - Truncate(x)) == 0.5){
-    if( !DivisibleBy(Round(x), 2.0) ){
-      r = Round(x) - 1.0;
-    }else{
-      r = Round(x);
-    }
-  }else{
-    r = Round(x);
-  }
 
-  return r;
-}
-double Ceil(double x){
-  return ceil(x);
-}
-double Floor(double x){
-  return floor(x);
-}
-double Truncate(double x){
-  double t;
+#define DivisibleBy(a, b) ((fmod(a, b)) == 0.0)
 
-  if(x >= 0.0){
-    t = floor(x);
-  }else{
-    t = ceil(x);
-  }
 
-  return t;
-}
-double Absolute(double x){
-  return fabs(x);
-}
-double Logarithm(double x){
-  return log10(x);
-}
-double NaturalLogarithm(double x){
-  return log(x);
-}
-double Sin(double x){
-  return sin(x);
-}
-double Cos(double x){
-  return cos(x);
-}
-double Tan(double x){
-  return tan(x);
-}
-double Asin(double x){
-  return asin(x);
-}
-double Acos(double x){
-  return acos(x);
-}
-double Atan(double x){
-  return atan(x);
-}
-double Atan2(double y, double x){
-  double a;
-
-  /* Atan2 is an invalid operation when x = 0 and y = 0, but this method does not return errors. */
-  a = 0.0;
-
-  if(x > 0.0){
-    a = Atan(y/x);
-  }else if(x < 0.0 && y >= 0.0){
-    a = Atan(y/x) + M_PI;
-  }else if(x < 0.0 && y < 0.0){
-    a = Atan(y/x) - M_PI;
-  }else if(x == 0.0 && y > 0.0){
-    a = M_PI/2.0;
-  }else if(x == 0.0 && y < 0.0){
-    a =  -M_PI/2.0;
-  }
-
-  return a;
-}
-double Squareroot(double x){
-  return sqrt(x);
-}
-double Exp(double x){
-  return exp(x);
-}
-bool DivisibleBy(double a, double b){
-  return ((fmod(a, b)) == 0.0);
-}
-double Combinations(double n, double k){
-  double i, j, c;
-
-  c = 1.0;
-  j = 1.0;
-  i = n - k + 1.0;
-
-  for(; i <= n; ){
-    c = c*i;
-    c = c/j;
-
-    i = i + 1.0;
-    j = j + 1.0;
-  }
-
-  return c;
-}
-double Permutations(double n, double k){
-  double i, c;
-
-  c = 1.0;
-
-  for(i = n - k + 1.0; i <= n; i = i + 1.0){
-    c = c*i;
-  }
-
-  return c;
-}
-bool EpsilonCompare(double a, double b, double epsilon){
-  return fabs(a - b) < epsilon;
-}
-double GreatestCommonDivisor(double a, double b){
-  double t;
-
-  for(; b != 0.0; ){
-    t = b;
-    b = fmod(a, b);
-    a = t;
-  }
-
-  return a;
-}
-double GCDWithSubtraction(double a, double b){
-  double g;
-
-  if(a == 0.0){
-    g = b;
-  }else{
-    for(; b != 0.0; ){
-      if(a > b){
-        a = a - b;
-      }else{
-        b = b - a;
-      }
-    }
-
-    g = a;
-  }
-
-  return g;
-}
-bool IsInteger(double a){
-  return (a - floor(a)) == 0.0;
-}
-bool GreatestCommonDivisorWithCheck(double a, double b, NumberReference *gcdReference){
-  bool success;
-  double gcd;
-
-  if(IsInteger(a) && IsInteger(b)){
-    gcd = GreatestCommonDivisor(a, b);
-    gcdReference->numberValue = gcd;
-    success = true;
-  }else{
-    success = false;
-  }
-
-  return success;
-}
-double LeastCommonMultiple(double a, double b){
-  double lcm;
-
-  if(a > 0.0 && b > 0.0){
-    lcm = fabs(a*b)/GreatestCommonDivisor(a, b);
-  }else{
-    lcm = 0.0;
-  }
-
-  return lcm;
-}
-double Sign(double a){
-  double s;
-
-  if(a > 0.0){
-    s = 1.0;
-  }else if(a < 0.0){
-    s =  -1.0;
-  }else{
-    s = 0.0;
-  }
-
-  return s;
-}
-double Max(double a, double b){
-  return fmax(a, b);
-}
-double Min(double a, double b){
-  return fmin(a, b);
-}
-double Power(double a, double b){
-  return pow(a, b);
-}
-double Gamma(double x){
-  return LanczosApproximation(x);
-}
-double LogGamma(double x){
-  return log(Gamma(x));
-}
-double LanczosApproximation(double z){
-  double *p;
-  size_t pLength;
-  double i, y, t, x;
-
-  p = (double*)calloc(sizeof(double) * (8.0), 1);
-  pLength = 8.0;
-  p[0] = 676.5203681218851;
-  p[1] =  -1259.1392167224028;
-  p[2] = 771.32342877765313;
-  p[3] =  -176.61502916214059;
-  p[4] = 12.507343278686905;
-  p[5] =  -0.13857109526572012;
-  p[6] = 9.9843695780195716e-6;
-  p[7] = 1.5056327351493116e-7;
-
-  if(z < 0.5){
-    y = M_PI/(sin(M_PI*z)*LanczosApproximation(1.0 - z));
-  }else{
-    z = z - 1.0;
-    x = 0.99999999999980993;
-    for(i = 0.0; i < (double)pLength; i = i + 1.0){
-      x = x + p[(int)(i)]/(z + i + 1.0);
-    }
-    t = z + (double)pLength - 0.5;
-    y = sqrt(2.0*M_PI)*pow(t, z + 0.5)*exp( -t)*x;
-  }
-
-  return y;
-}
-double Beta(double x, double y){
-  return Gamma(x)*Gamma(y)/Gamma(x + y);
-}
-double Sinh(double x){
-  return (exp(x) - exp( -x))/2.0;
-}
-double Cosh(double x){
-  return (exp(x) + exp( -x))/2.0;
-}
-double Tanh(double x){
-  return Sinh(x)/Cosh(x);
-}
-double Cot(double x){
-  return 1.0/tan(x);
-}
-double Sec(double x){
-  return 1.0/cos(x);
-}
-double Csc(double x){
-  return 1.0/sin(x);
-}
-double Coth(double x){
-  return Cosh(x)/Sinh(x);
-}
-double Sech(double x){
-  return 1.0/Cosh(x);
-}
-double Csch(double x){
-  return 1.0/Sinh(x);
-}
-double Error(double x){
-  double y, t, tau, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10;
-
-  if(x == 0.0){
-    y = 0.0;
-  }else if(x < 0.0){
-    y =  -Error( -x);
-  }else{
-    c1 =  -1.26551223;
-    c2 =  +1.00002368;
-    c3 =  +0.37409196;
-    c4 =  +0.09678418;
-    c5 =  -0.18628806;
-    c6 =  +0.27886807;
-    c7 =  -1.13520398;
-    c8 =  +1.48851587;
-    c9 =  -0.82215223;
-    c10 =  +0.17087277;
-
-    t = 1.0/(1.0 + 0.5*fabs(x));
-
-    tau = t*exp( -pow(x, 2.0) + c1 + t*(c2 + t*(c3 + t*(c4 + t*(c5 + t*(c6 + t*(c7 + t*(c8 + t*(c9 + t*c10)))))))));
-
-    y = 1.0 - tau;
-  }
-
-  return y;
-}
-double ErrorInverse(double x){
-  double y, a, t;
-
-  a = (8.0*(M_PI - 3.0))/(3.0*M_PI*(4.0 - M_PI));
-
-  t = 2.0/(M_PI*a) + log(1.0 - pow(x, 2.0))/2.0;
-  y = Sign(x)*sqrt(sqrt(pow(t, 2.0) - log(1.0 - pow(x, 2.0))/a) - t);
-
-  return y;
-}
-double FallingFactorial(double x, double n){
-  double k, y;
-
-  y = 1.0;
-
-  for(k = 0.0; k <= n - 1.0; k = k + 1.0){
-    y = y*(x - k);
-  }
-
-  return y;
-}
-double RisingFactorial(double x, double n){
-  double k, y;
-
-  y = 1.0;
-
-  for(k = 0.0; k <= n - 1.0; k = k + 1.0){
-    y = y*(x + k);
-  }
-
-  return y;
-}
-double Hypergeometric(double a, double b, double c, double z, double maxIterations, double precision){
-  double y;
-
-  if(fabs(z) >= 0.5){
-    y = pow(1.0 - z,  -a)*HypergeometricDirect(a, c - b, c, z/(z - 1.0), maxIterations, precision);
-  }else{
-    y = HypergeometricDirect(a, b, c, z, maxIterations, precision);
-  }
-
-  return y;
-}
-double HypergeometricDirect(double a, double b, double c, double z, double maxIterations, double precision){
-  double y, yp, n;
-  bool done;
-
-  y = 0.0;
-  done = false;
-
-  for(n = 0.0; n < maxIterations &&  !done ; n = n + 1.0){
-    yp = RisingFactorial(a, n)*RisingFactorial(b, n)/RisingFactorial(c, n)*pow(z, n)/Factorial(n);
-    if(fabs(yp) < precision){
-      done = true;
-    }
-    y = y + yp;
-  }
-
-  return y;
-}
-double BernouilliNumber(double n){
-  return AkiyamaTanigawaAlgorithm(n);
-}
-double AkiyamaTanigawaAlgorithm(double n){
-  double m, j, B;
-  double *A;
-
-  A = (double*)calloc(sizeof(double) * (n + 1.0), 1);
-
-  for(m = 0.0; m <= n; m = m + 1.0){
-    A[(int)(m)] = 1.0/(m + 1.0);
-    for(j = m; j >= 1.0; j = j - 1.0){
-      A[(int)(j - 1.0)] = j*(A[(int)(j - 1.0)] - A[(int)(j)]);
-    }
-  }
-
-  B = A[0];
-
-  free(A);
-
-  return B;
-}
-double *aStringToNumberArray(size_t *returnArrayLength, char *string, size_t stringLength){
-  double i;
-  double *array;
-  size_t arrayLength;
-
-  array = (double*)calloc(sizeof(double) * ((double)stringLength), 1);
-  arrayLength = (double)stringLength;
-
-  for(i = 0.0; i < (double)stringLength; i = i + 1.0){
-    array[(int)(i)] = string[(int)(i)];
-  }
-  *returnArrayLength = arrayLength;
-  return array;
-}
-char *aNumberArrayToString(size_t *returnArrayLength, double *array, size_t arrayLength){
-  double i;
-  char *string;
-  size_t stringLength;
-
-  string = (char*)calloc(sizeof(char) * ((double)arrayLength), 1);
-  stringLength = (double)arrayLength;
-
-  for(i = 0.0; i < (double)arrayLength; i = i + 1.0){
-    string[(int)(i)] = array[(int)(i)];
-  }
-  *returnArrayLength = stringLength;
-  return string;
-}
-bool aNumberArraysEqual(double *a, size_t aLength, double *b, size_t bLength){
-  bool equal;
-  double i;
-
-  equal = true;
-  if((double)aLength == (double)bLength){
-    for(i = 0.0; i < (double)aLength && equal; i = i + 1.0){
-      if(a[(int)(i)] != b[(int)(i)]){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
-
-  return equal;
-}
-bool aBooleanArraysEqual(bool *a, size_t aLength, bool *b, size_t bLength){
-  bool equal;
-  double i;
-
-  equal = true;
-  if((double)aLength == (double)bLength){
-    for(i = 0.0; i < (double)aLength && equal; i = i + 1.0){
-      if(a[(int)(i)] != b[(int)(i)]){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
-
-  return equal;
-}
-bool aStringsEqual(char *a, size_t aLength, char *b, size_t bLength){
-  bool equal;
-  double i;
-
-  equal = true;
-  if((double)aLength == (double)bLength){
-    for(i = 0.0; i < (double)aLength && equal; i = i + 1.0){
-      if(a[(int)(i)] != b[(int)(i)]){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
-
-  return equal;
-}
 void aFillNumberArray(double *a, size_t aLength, double value){
   double i;
 
@@ -4109,6 +3183,8 @@ void aFillNumberArray(double *a, size_t aLength, double value){
     a[(int)(i)] = value;
   }
 }
+
+
 void aFillString(char *a, size_t aLength, char value){
   double i;
 
@@ -4116,6 +3192,8 @@ void aFillString(char *a, size_t aLength, char value){
     a[(int)(i)] = value;
   }
 }
+
+
 void aFillBooleanArray(bool *a, size_t aLength, bool value){
   double i;
 
@@ -4123,6 +3201,8 @@ void aFillBooleanArray(bool *a, size_t aLength, bool value){
     a[(int)(i)] = value;
   }
 }
+
+
 bool aFillNumberArrayRange(double *a, size_t aLength, double value, double from, double to){
   double i, length;
   bool success;
@@ -4140,6 +3220,8 @@ bool aFillNumberArrayRange(double *a, size_t aLength, double value, double from,
 
   return success;
 }
+
+
 bool aFillBooleanArrayRange(bool *a, size_t aLength, bool value, double from, double to){
   double i, length;
   bool success;
@@ -4157,6 +3239,8 @@ bool aFillBooleanArrayRange(bool *a, size_t aLength, bool value, double from, do
 
   return success;
 }
+
+
 bool aFillStringRange(char *a, size_t aLength, char value, double from, double to){
   double i, length;
   bool success;
@@ -4174,6 +3258,8 @@ bool aFillStringRange(char *a, size_t aLength, char value, double from, double t
 
   return success;
 }
+
+
 double *aCopyNumberArray(size_t *returnArrayLength, double *a, size_t aLength){
   double i;
   double *n;
@@ -4189,6 +3275,8 @@ double *aCopyNumberArray(size_t *returnArrayLength, double *a, size_t aLength){
   *returnArrayLength = nLength;
   return n;
 }
+
+
 bool *aCopyBooleanArray(size_t *returnArrayLength, bool *a, size_t aLength){
   double i;
   bool *n;
@@ -4204,6 +3292,8 @@ bool *aCopyBooleanArray(size_t *returnArrayLength, bool *a, size_t aLength){
   *returnArrayLength = nLength;
   return n;
 }
+
+
 char *aCopyString(size_t *returnArrayLength, char *a, size_t aLength){
   double i;
   char *n;
@@ -4219,6 +3309,8 @@ char *aCopyString(size_t *returnArrayLength, char *a, size_t aLength){
   *returnArrayLength = nLength;
   return n;
 }
+
+
 bool aCopyNumberArrayRange(double *a, size_t aLength, double from, double to, NumberArrayReference *copyReference){
   double i, length;
   double *n;
@@ -4243,6 +3335,8 @@ bool aCopyNumberArrayRange(double *a, size_t aLength, double from, double to, Nu
 
   return success;
 }
+
+
 bool aCopyBooleanArrayRange(bool *a, size_t aLength, double from, double to, BooleanArrayReference *copyReference){
   double i, length;
   bool *n;
@@ -4267,6 +3361,8 @@ bool aCopyBooleanArrayRange(bool *a, size_t aLength, double from, double to, Boo
 
   return success;
 }
+
+
 bool aCopyStringRange(char *a, size_t aLength, double from, double to, StringReference *copyReference){
   double i, length;
   char *n;
@@ -4291,63 +3387,8 @@ bool aCopyStringRange(char *a, size_t aLength, double from, double to, StringRef
 
   return success;
 }
-bool aIsLastElement(double length, double index){
-  return index + 1.0 == length;
-}
-double *aCreateNumberArray(size_t *returnArrayLength, double length, double value){
-  double *array;
-  size_t arrayLength;
 
-  array = (double*)calloc(sizeof(double) * (length), 1);
-  arrayLength = length;
-  aFillNumberArray(array, arrayLength, value);
 
-  *returnArrayLength = arrayLength;
-  return array;
-}
-bool *aCreateBooleanArray(size_t *returnArrayLength, double length, bool value){
-  bool *array;
-  size_t arrayLength;
-
-  array = (bool*)calloc(sizeof(bool) * (length), 1);
-  arrayLength = length;
-  aFillBooleanArray(array, arrayLength, value);
-
-  *returnArrayLength = arrayLength;
-  return array;
-}
-char *aCreateString(size_t *returnArrayLength, double length, char value){
-  char *array;
-  size_t arrayLength;
-
-  array = (char*)calloc(sizeof(char) * (length), 1);
-  arrayLength = length;
-  aFillString(array, arrayLength, value);
-
-  *returnArrayLength = arrayLength;
-  return array;
-}
-void aSwapElementsOfNumberArray(double *A, size_t ALength, double ai, double bi){
-  double tmp;
-
-  tmp = A[(int)(ai)];
-  A[(int)(ai)] = A[(int)(bi)];
-  A[(int)(bi)] = tmp;
-}
-void aSwapElementsOfStringArray(StringArrayReference *A, double ai, double bi){
-  StringReference *tmp;
-
-  tmp = A->stringArray[(int)(ai)];
-  A->stringArray[(int)(ai)] = A->stringArray[(int)(bi)];
-  A->stringArray[(int)(bi)] = tmp;
-}
-void aReverseNumberArray(double *array, size_t arrayLength){
-  double i;
-
-  for(i = 0.0; i < (double)arrayLength/2.0; i = i + 1.0){
-    aSwapElementsOfNumberArray(array, arrayLength, i, (double)arrayLength - i - 1.0);
-  }
-}
 BooleanReference *CreateBooleanReference(bool value){
   BooleanReference *ref;
 
@@ -4356,15 +3397,8 @@ BooleanReference *CreateBooleanReference(bool value){
 
   return ref;
 }
-BooleanArrayReference *CreateBooleanArrayReference(bool *value, size_t valueLength){
-  BooleanArrayReference *ref;
 
-  ref = (BooleanArrayReference *)calloc(sizeof(BooleanArrayReference), 1);
-  ref->booleanArray = value;
-  ref->booleanArrayLength = valueLength;
 
-  return ref;
-}
 BooleanArrayReference *CreateBooleanArrayReferenceLengthValue(double length, bool value){
   BooleanArrayReference *ref;
   double i;
@@ -4379,10 +3413,14 @@ BooleanArrayReference *CreateBooleanArrayReferenceLengthValue(double length, boo
 
   return ref;
 }
+
+
 void freeBooleanArrayReference(BooleanArrayReference *booleanArrayReference){
   free(booleanArrayReference->booleanArray);
   free(booleanArrayReference);
 }
+
+
 CharacterReference *CreateCharacterReference(char value){
   CharacterReference *ref;
 
@@ -4391,6 +3429,8 @@ CharacterReference *CreateCharacterReference(char value){
 
   return ref;
 }
+
+
 NumberReference *CreateNumberReference(double value){
   NumberReference *ref;
 
@@ -4399,6 +3439,8 @@ NumberReference *CreateNumberReference(double value){
 
   return ref;
 }
+
+
 NumberArrayReference *CreateNumberArrayReference(double *value, size_t valueLength){
   NumberArrayReference *ref;
 
@@ -4408,6 +3450,8 @@ NumberArrayReference *CreateNumberArrayReference(double *value, size_t valueLeng
 
   return ref;
 }
+
+
 NumberArrayReference *CreateNumberArrayReferenceLengthValue(double length, double value){
   NumberArrayReference *ref;
   double i;
@@ -4422,10 +3466,14 @@ NumberArrayReference *CreateNumberArrayReferenceLengthValue(double length, doubl
 
   return ref;
 }
+
+
 void freeNumberArrayReference(NumberArrayReference *numberArrayReference){
   free(numberArrayReference->numberArray);
   free(numberArrayReference);
 }
+
+
 StringReference *CreateStringReference(char *value, size_t valueLength){
   StringReference *ref;
 
@@ -4435,6 +3483,8 @@ StringReference *CreateStringReference(char *value, size_t valueLength){
 
   return ref;
 }
+
+
 StringReference *CreateStringReferenceLengthValue(double length, char value){
   StringReference *ref;
   double i;
@@ -4449,10 +3499,14 @@ StringReference *CreateStringReferenceLengthValue(double length, char value){
 
   return ref;
 }
+
+
 void FreeStringReference(StringReference *stringReference){
   free(stringReference->string);
   free(stringReference);
 }
+
+
 StringArrayReference *CreateStringArrayReference(StringReference **strings, size_t stringsLength){
   StringArrayReference *ref;
 
@@ -4462,6 +3516,8 @@ StringArrayReference *CreateStringArrayReference(StringReference **strings, size
 
   return ref;
 }
+
+
 StringArrayReference *CreateStringArrayReferenceLengthValue(double length, char *value, size_t valueLength){
   StringArrayReference *ref;
   double i;
@@ -4476,6 +3532,8 @@ StringArrayReference *CreateStringArrayReferenceLengthValue(double length, char 
 
   return ref;
 }
+
+
 void freeStringArrayReference(StringArrayReference *stringArrayReference){
   double i;
 
@@ -4485,20 +3543,26 @@ void freeStringArrayReference(StringArrayReference *stringArrayReference){
   free(stringArrayReference->stringArray);
   free(stringArrayReference);
 }
+
+
+static char pixel_array_base16[] = 
+"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe891412108153069c4ffffffffffffffffffffffffffffffffffffffff9409000000000000000049e7ffffffffffffffffffffffffffffffffff61000000000000000000000017ddffffffffffffffffffffffffffffff840000000573d3f5e5a62b00000028f0ffffffffffffffffffffffffffda04000008bcfffffffffff44200000073ffffffffffffffffffffffffff5700000088ffffffffffffffe812000008e3ffffffffffffffffffffffea02000015f9ffffffffffffffff8100000080ffffffffffffffffffffff9c00000072ffffffffffffffffffe40100002fffffffffffffffffffffff51000000b8ffffffffffffffffffff2a000000e2ffffffffffffffffffff21000001f0ffffffffffffffffffff65000000b3fffffffffffffffffff602000018ffffffffffffffffffffff8b0000008affffffffffffffffffd200000036ffffffffffffffffffffffa900000063ffffffffffffffffffc00000004effffffffffffffffffffffc100000052ffffffffffffffffffb500000057ffffffffffffffffffffffc900000046ffffffffffffffffffa90000005fffffffffffffffffffffffd20000003affffffffffffffffffa900000060ffffffffffffffffffffffd30000003affffffffffffffffffb400000057ffffffffffffffffffffffca00000046ffffffffffffffffffc00000004effffffffffffffffffffffc100000052ffffffffffffffffffd100000037ffffffffffffffffffffffa900000063fffffffffffffffffff602000019ffffffffffffffffffffff8b00000089ffffffffffffffffffff21000001f1ffffffffffffffffffff66000000b3ffffffffffffffffffff50000000b8ffffffffffffffffffff2a000000e1ffffffffffffffffffff9c00000073ffffffffffffffffffe40100002fffffffffffffffffffffffea02000015f9ffffffffffffffff8200000080ffffffffffffffffffffffff5700000088ffffffffffffffe812000008e2ffffffffffffffffffffffffda04000008bcfffffffffff44300000073ffffffffffffffffffffffffffff830000000674d3f6e6a72b00000028f0ffffffffffffffffffffffffffffff60000000000000000000000016ddfffffffffffffffffffffffffffffffffe9309000000000000000048e6ffffffffffffffffffffffffffffffffffffffe88f3f1f07132e68c3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9d7b28e69441f02000000afffffffffffffffffffffffffffffffffffff6300000000000000000000afffffffffffffffffffffffffffffffffffff6300000000000000000000afffffffffffffffffffffffffffffffffffff6a274c7095b9de64000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000affffffffffffffffffffffffffffffffffffff7000000000000000000000000000000003bfffffffffffffffffffffffff7000000000000000000000000000000003bfffffffffffffffffffffffff7000000000000000000000000000000003bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd48b56271005142a5ea0f6ffffffffffffffffffffffffffffffffdb7c20000000000000000000001392feffffffffffffffffffffffffffff1f00000000000000000000000000004cf9ffffffffffffffffffffffffff1f0000003784c7e7f9e8b1480000000056ffffffffffffffffffffffffff1f015accffffffffffffffff9701000000b0ffffffffffffffffffffffff58caffffffffffffffffffffff770000003cfffffffffffffffffffffffffffffffffffffffffffffffffff107000002edffffffffffffffffffffffffffffffffffffffffffffffffff3a000000ccffffffffffffffffffffffffffffffffffffffffffffffffff4c000000baffffffffffffffffffffffffffffffffffffffffffffffffff32000000cbffffffffffffffffffffffffffffffffffffffffffffffffec05000002edffffffffffffffffffffffffffffffffffffffffffffffff8d00000039ffffffffffffffffffffffffffffffffffffffffffffffffeb140000009affffffffffffffffffffffffffffffffffffffffffffffff520000002afbffffffffffffffffffffffffffffffffffffffffffffff8c00000003c7ffffffffffffffffffffffffffffffffffffffffffffffb30300000085ffffffffffffffffffffffffffffffffffffffffffffffc50a0000005dfeffffffffffffffffffffffffffffffffffffffffffffd2110000004efbffffffffffffffffffffffffffffffffffffffffffffdb1800000042f8ffffffffffffffffffffffffffffffffffffffffffffe21f00000039f3ffffffffffffffffffffffffffffffffffffffffffffe92600000030efffffffffffffffffffffffffffffffffffffffffffffee2e00000029eafffffffffffffffffffffffffffffffffffffffffffff33700000022e5fffffffffffffffffffffffffffffffffffffffffffff7410000001cdffffffffffffffffffffffffffffffffffffffffffffffb4c00000017d9fffffffffffffffffffffffffffffffffffffffffffffd5900000012d2ffffffffffffffffffffffffffffffffffffffffffffff680000000ecbffffffffffffffffffffffffffffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe2af8058392817060a1a3f74c8ffffffffffffffffffffffffffffffffeb0000000000000000000000000036cfffffffffffffffffffffffffffffeb000000000000000000000000000004a7ffffffffffffffffffffffffffeb00000f5a9dd0edfbf0ca841900000003c2ffffffffffffffffffffffffec3da8f9fffffffffffffffff0410000002bffffffffffffffffffffffffffffffffffffffffffffffffffee12000000cbffffffffffffffffffffffffffffffffffffffffffffffffff6900000090ffffffffffffffffffffffffffffffffffffffffffffffffff9600000078ffffffffffffffffffffffffffffffffffffffffffffffffff9a0000007effffffffffffffffffffffffffffffffffffffffffffffffff73000000a5fffffffffffffffffffffffffffffffffffffffffffffffff51b000009edfffffffffffffffffffffffffffffffffffffffffffffff7540000007efffffffffffffffffffffffffffffffffffffffffff3d3912400000055fcffffffffffffffffffffffffffffffffff1700000000000000001692feffffffffffffffffffffffffffffffffffff17000000000000002db8feffffffffffffffffffffffffffffffffffffff170000000000000000002bc3fffffffffffffffffffffffffffffffffffffffffffdf0cf922e00000003a5fffffffffffffffffffffffffffffffffffffffffffffffffd8700000007d1ffffffffffffffffffffffffffffffffffffffffffffffffff780000004ffffffffffffffffffffffffffffffffffffffffffffffffffff308000006f6ffffffffffffffffffffffffffffffffffffffffffffffffff3c000000d0ffffffffffffffffffffffffffffffffffffffffffffffffff4d000000c6ffffffffffffffffffffffffffffffffffffffffffffffffff35000000ddffffffffffffffffffffffffffffffffffffffffffffffffea0300000bf9ffffffffffffffffffffffffffffffffffffffffffffffff6200000054ffffffffffffffffffffff47bafefffffffffffffffffff56b00000002cbffffffffffffffffffffff0b001e71a9d7edfbf6e4ba771a000000007cffffffffffffffffffffffff0b0000000000000000000000000000017dffffffffffffffffffffffffff0b000000000000000000000000003cc8ffffffffffffffffffffffffffffe9b989593827160608162a5689dbffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbd0100000000f3fffffffffffffffffffffffffffffffffffffffffffff3200000000000f3ffffffffffffffffffffffffffffffffffffffffffff69000000000000f3ffffffffffffffffffffffffffffffffffffffffffbf01000b0e000000f3fffffffffffffffffffffffffffffffffffffffff42100008e1f000000f3ffffffffffffffffffffffffffffffffffffffff6a000035fc1f000000f3ffffffffffffffffffffffffffffffffffffffc0010004d1ff1f000000f3fffffffffffffffffffffffffffffffffffff42200007affff1f000000f3ffffffffffffffffffffffffffffffffffff6c000026f7ffff1f000000f3ffffffffffffffffffffffffffffffffffc1010001c1ffffff1f000000f3fffffffffffffffffffffffffffffffff523000066ffffffff1f000000f3ffffffffffffffffffffffffffffffff6d000019f0ffffffff1f000000f3ffffffffffffffffffffffffffffffc2010000aeffffffffff1f000000f3fffffffffffffffffffffffffffff524000052ffffffffffff1f000000f3ffffffffffffffffffffffffffff6e00000fe6ffffffffffff1f000000f3ffffffffffffffffffffffffffc30200009affffffffffffff1f000000f3fffffffffffffffffffffffff62400003ffeffffffffffffff1f000000f3ffffffffffffffffffffffff70000008daffffffffffffffff1f000000f3fffffffffffffffffffffff602000086ffffffffffffffffff1f000000f3fffffffffffffffffffffff3000000000000000000000000000000000000000000cbfffffffffffffff3000000000000000000000000000000000000000000cbfffffffffffffff3000000000000000000000000000000000000000000cbffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f000008672f120514275997efffffffffffffffffffffffffffffffffff4f00000000000000000000000b73f6ffffffffffffffffffffffffffffff4f000000000000000000000000002bdeffffffffffffffffffffffffffff60538cbad2e7faf0d599370000000025ebffffffffffffffffffffffffffffffffffffffffffffffffa0090000005bffffffffffffffffffffffffffffffffffffffffffffffffffb100000001d2ffffffffffffffffffffffffffffffffffffffffffffffffff560000007effffffffffffffffffffffffffffffffffffffffffffffffffb80000003dffffffffffffffffffffffffffffffffffffffffffffffffffec00000022fffffffffffffffffffffffffffffffffffffffffffffffffffd00000011ffffffffffffffffffffffffffffffffffffffffffffffffffec00000022ffffffffffffffffffffffffffffffffffffffffffffffffffb80000003cffffffffffffffffffffffffffffffffffffffffffffffffff580000007dffffffffffffffffffffffffffffffffffffffffffffffffb301000000cfffffffffffffffffffffff4cb1fdffffffffffffffffffa40a00000058ffffffffffffffffffffffff17001a6ea9d7eefbf2d69b380000000024e8ffffffffffffffffffffffff1700000000000000000000000000002de0ffffffffffffffffffffffffff17000000000000000000000000127ef9ffffffffffffffffffffffffffffebba8a59372615050a1a3569a6f7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffca753915050d233866a3e0ffffffffffffffffffffffffffffffffffd13f0000000000000000000000f7ffffffffffffffffffffffffffffff9d07000000000000000000000000f7ffffffffffffffffffffffffffff9700000000469fdbf3f5da9e490100f7ffffffffffffffffffffffffffca0300000eb3ffffffffffffffffd84df8fffffffffffffffffffffffffa2d000007c8ffffffffffffffffffffffffffffffffffffffffffffffff9100000081ffffffffffffffffffffffffffffffffffffffffffffffffff28000010f6ffffffffffffffffffffffffffffffffffffffffffffffffc20000006affffffffffffffffffffffffffffffffffffffffffffffffff79000000b2ffffffffffffffffffffffffffffffffffffffffffffffffff43000000ebffeb903d1a0616306fc0ffffffffffffffffffffffffffffff0f000015ffa211000000000000000041dcfffffffffffffffffffffffff30000003087000000000000000000000013c6ffffffffffffffffffffffe30000000f00000055beeef7d8881000000017e6ffffffffffffffffffffd30000000000019dffffffffffffe12200000056ffffffffffffffffffffd100000000006effffffffffffffffce04000002dbffffffffffffffffffdd0000000006eaffffffffffffffffff550000008bffffffffffffffffffe90000000043ffffffffffffffffffffa90000004dfffffffffffffffffff80200000074ffffffffffffffffffffdb0000002cffffffffffffffffffff2200000088ffffffffffffffffffffef00000019ffffffffffffffffffff4d00000088ffffffffffffffffffffee0000001affffffffffffffffffff7e00000074ffffffffffffffffffffdb0000002dffffffffffffffffffffcd00000042ffffffffffffffffffffa900000052ffffffffffffffffffffff21000005e9ffffffffffffffffff5400000093ffffffffffffffffffffff8f0000006dffffffffffffffffcd04000007e6fffffffffffffffffffffff9220000019effffffffffffe1230000006cffffffffffffffffffffffffffc00600000056beeff8d888110000002af3ffffffffffffffffffffffffffffa603000000000000000000000026ddffffffffffffffffffffffffffffffffc8280000000000000000025deffffffffffffffffffffffffffffffffffffffab25a2a1106193b7ed7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff47000000000000000000000000000000000000f7ffffffffffffffffffff47000000000000000000000000000000000003faffffffffffffffffffff4700000000000000000000000000000000004afffffffffffffffffffffffffffffffffffffffffffffffffc1a000000adffffffffffffffffffffffffffffffffffffffffffffffffb300000015faffffffffffffffffffffffffffffffffffffffffffffffff5100000073ffffffffffffffffffffffffffffffffffffffffffffffffea05000000d6ffffffffffffffffffffffffffffffffffffffffffffffff8d00000039ffffffffffffffffffffffffffffffffffffffffffffffffff2c0000009dffffffffffffffffffffffffffffffffffffffffffffffffc90000000cf3ffffffffffffffffffffffffffffffffffffffffffffffff6700000063fffffffffffffffffffffffffffffffffffffffffffffffff60f000000c6ffffffffffffffffffffffffffffffffffffffffffffffffa300000029ffffffffffffffffffffffffffffffffffffffffffffffffff410000008cffffffffffffffffffffffffffffffffffffffffffffffffdf01000005e9ffffffffffffffffffffffffffffffffffffffffffffffff7d00000052fffffffffffffffffffffffffffffffffffffffffffffffffd1e000000b5ffffffffffffffffffffffffffffffffffffffffffffffffb90000001bfcffffffffffffffffffffffffffffffffffffffffffffffff570000007bffffffffffffffffffffffffffffffffffffffffffffffffee07000001ddffffffffffffffffffffffffffffffffffffffffffffffff9300000042ffffffffffffffffffffffffffffffffffffffffffffffffff31000000a5ffffffffffffffffffffffffffffffffffffffffffffffffd000000010f7ffffffffffffffffffffffffffffffffffffffffffffffff6d0000006bfffffffffffffffffffffffffffffffffffffffffffffffff913000000ceffffffffffffffffffffffffffffffffffffffffffffffffa900000031ffffffffffffffffffffffffffffffffffffffffffffffffff4700000094ffffffffffffffffffffffffffffffffffffffffffffffffe302000008eeffffffffffffffffffffffffffffffffffffffffffffffff840000005afffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9a8602c13050c1d4882dfffffffffffffffffffffffffffffffffffffa918000000000000000000025eeeffffffffffffffffffffffffffffff780000000000000000000000000023e5ffffffffffffffffffffffffff9f0000000037a8e4faf1c66d0500000033fdfffffffffffffffffffffff81600000065fdffffffffffffc40a0000009fffffffffffffffffffffffb600000021faffffffffffffffff8d00000047ffffffffffffffffffffff820000007bffffffffffffffffffeb01000014ffffffffffffffffffffff6d000000a2ffffffffffffffffffff15000001fdffffffffffffffffffff76000000a2ffffffffffffffffffff14000007ffffffffffffffffffffffa10000007bffffffffffffffffffec01000033ffffffffffffffffffffffec08000022fbffffffffffffffff8e00000087ffffffffffffffffffffffff7d00000068fdffffffffffffc70b00001ef2fffffffffffffffffffffffffb5500000039aae5fbf2c87006000013d0fffffffffffffffffffffffffffffe93160000000000000000000153e3ffffffffffffffffffffffffffffffffffbd2e000000000000000780f0ffffffffffffffffffffffffffffffffce3500000000000000000000000e87fcffffffffffffffffffffffffffb3060000004fb2e6faf0cd82150000004ffaffffffffffffffffffffffda0b000004a9ffffffffffffffe93600000076ffffffffffffffffffffff5600000084ffffffffffffffffffe80e000005e2fffffffffffffffffff606000008f4ffffffffffffffffffff6f0000008dffffffffffffffffffcb00000039ffffffffffffffffffffffac0000005cffffffffffffffffffbc0000004affffffffffffffffffffffbe0000004dffffffffffffffffffcc00000039ffffffffffffffffffffffac0000005effffffffffffffffffea00000008f4ffffffffffffffffffff6e0000007cffffffffffffffffffff2f00000085ffffffffffffffffffe70d000000c1ffffffffffffffffffff9300000004a9ffffffffffffffe83400000028fcfffffffffffffffffffffa2d0000000050b2e7fbf2cd821400000002b8ffffffffffffffffffffffffe523000000000000000000000000000299fffffffffffffffffffffffffffff16605000000000000000000002cc5ffffffffffffffffffffffffffffffffffe88e542512040b1b3d72c1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8a259251008203f8be2ffffffffffffffffffffffffffffffffffffffa91d0000000000000000047ffaffffffffffffffffffffffffffffffff7b00000000000000000000000040f8ffffffffffffffffffffffffffff94000000004db9ecf7da8b1300000057ffffffffffffffffffffffffffdc050000008fffffffffffffe527000000acffffffffffffffffffffffff630000005fffffffffffffffffd406000025fbfffffffffffffffffffffb0c000002e0ffffffffffffffffff5f000000b2ffffffffffffffffffffc600000036ffffffffffffffffffffb50000005fffffffffffffffffffffa000000068ffffffffffffffffffffe700000011feffffffffffffffffff8d0000007cfffffffffffffffffffffb00000000dfffffffffffffffffff8c0000007cfffffffffffffffffffffb00000000b4ffffffffffffffffff9e00000069ffffffffffffffffffffe7000000008dffffffffffffffffffbe00000038ffffffffffffffffffffb6000000007bfffffffffffffffffff606000003e2ffffffffffffffffff62000000006fffffffffffffffffffff4f00000064ffffffffffffffffd8080000000062ffffffffffffffffffffc50000000096ffffffffffffe82b000000000064ffffffffffffffffffffff6c0000000051bbeff8dc8e1500001000000074fffffffffffffffffffffff94f0000000000000000000000288c00000084fffffffffffffffffffffffffd810b000000000000000052ea830000009fffffffffffffffffffffffffffffea8d471d090d2864c1ffff5b000000d4ffffffffffffffffffffffffffffffffffffffffffffffffff2100000dfdffffffffffffffffffffffffffffffffffffffffffffffffd900000052ffffffffffffffffffffffffffffffffffffffffffffffffff75000000b8ffffffffffffffffffffffffffffffffffffffffffffffffe30d000023fefffffffffffffffffffffffffffffffffffffffffffffff945000000b7ffffffffffffffffffffffffff7fa2fdffffffffffffffe8480000005effffffffffffffffffffffffffff63002080c4ecfae7c0740e00000034f4ffffffffffffffffffffffffffff6300000000000000000000000043f0ffffffffffffffffffffffffffffff6300000000000000000000118efdfffffffffffffffffffffffffffffffff4bb7f462b15040b25569ff4ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+
 char *DigitDataBase16(size_t *returnArrayLength){
-  *returnArrayLength = strlen("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe891412108153069c4ffffffffffffffffffffffffffffffffffffffff9409000000000000000049e7ffffffffffffffffffffffffffffffffff61000000000000000000000017ddffffffffffffffffffffffffffffff840000000573d3f5e5a62b00000028f0ffffffffffffffffffffffffffda04000008bcfffffffffff44200000073ffffffffffffffffffffffffff5700000088ffffffffffffffe812000008e3ffffffffffffffffffffffea02000015f9ffffffffffffffff8100000080ffffffffffffffffffffff9c00000072ffffffffffffffffffe40100002fffffffffffffffffffffff51000000b8ffffffffffffffffffff2a000000e2ffffffffffffffffffff21000001f0ffffffffffffffffffff65000000b3fffffffffffffffffff602000018ffffffffffffffffffffff8b0000008affffffffffffffffffd200000036ffffffffffffffffffffffa900000063ffffffffffffffffffc00000004effffffffffffffffffffffc100000052ffffffffffffffffffb500000057ffffffffffffffffffffffc900000046ffffffffffffffffffa90000005fffffffffffffffffffffffd20000003affffffffffffffffffa900000060ffffffffffffffffffffffd30000003affffffffffffffffffb400000057ffffffffffffffffffffffca00000046ffffffffffffffffffc00000004effffffffffffffffffffffc100000052ffffffffffffffffffd100000037ffffffffffffffffffffffa900000063fffffffffffffffffff602000019ffffffffffffffffffffff8b00000089ffffffffffffffffffff21000001f1ffffffffffffffffffff66000000b3ffffffffffffffffffff50000000b8ffffffffffffffffffff2a000000e1ffffffffffffffffffff9c00000073ffffffffffffffffffe40100002fffffffffffffffffffffffea02000015f9ffffffffffffffff8200000080ffffffffffffffffffffffff5700000088ffffffffffffffe812000008e2ffffffffffffffffffffffffda04000008bcfffffffffff44300000073ffffffffffffffffffffffffffff830000000674d3f6e6a72b00000028f0ffffffffffffffffffffffffffffff60000000000000000000000016ddfffffffffffffffffffffffffffffffffe9309000000000000000048e6ffffffffffffffffffffffffffffffffffffffe88f3f1f07132e68c3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9d7b28e69441f02000000afffffffffffffffffffffffffffffffffffff6300000000000000000000afffffffffffffffffffffffffffffffffffff6300000000000000000000afffffffffffffffffffffffffffffffffffff6a274c7095b9de64000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000affffffffffffffffffffffffffffffffffffff7000000000000000000000000000000003bfffffffffffffffffffffffff7000000000000000000000000000000003bfffffffffffffffffffffffff7000000000000000000000000000000003bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd48b56271005142a5ea0f6ffffffffffffffffffffffffffffffffdb7c20000000000000000000001392feffffffffffffffffffffffffffff1f00000000000000000000000000004cf9ffffffffffffffffffffffffff1f0000003784c7e7f9e8b1480000000056ffffffffffffffffffffffffff1f015accffffffffffffffff9701000000b0ffffffffffffffffffffffff58caffffffffffffffffffffff770000003cfffffffffffffffffffffffffffffffffffffffffffffffffff107000002edffffffffffffffffffffffffffffffffffffffffffffffffff3a000000ccffffffffffffffffffffffffffffffffffffffffffffffffff4c000000baffffffffffffffffffffffffffffffffffffffffffffffffff32000000cbffffffffffffffffffffffffffffffffffffffffffffffffec05000002edffffffffffffffffffffffffffffffffffffffffffffffff8d00000039ffffffffffffffffffffffffffffffffffffffffffffffffeb140000009affffffffffffffffffffffffffffffffffffffffffffffff520000002afbffffffffffffffffffffffffffffffffffffffffffffff8c00000003c7ffffffffffffffffffffffffffffffffffffffffffffffb30300000085ffffffffffffffffffffffffffffffffffffffffffffffc50a0000005dfeffffffffffffffffffffffffffffffffffffffffffffd2110000004efbffffffffffffffffffffffffffffffffffffffffffffdb1800000042f8ffffffffffffffffffffffffffffffffffffffffffffe21f00000039f3ffffffffffffffffffffffffffffffffffffffffffffe92600000030efffffffffffffffffffffffffffffffffffffffffffffee2e00000029eafffffffffffffffffffffffffffffffffffffffffffff33700000022e5fffffffffffffffffffffffffffffffffffffffffffff7410000001cdffffffffffffffffffffffffffffffffffffffffffffffb4c00000017d9fffffffffffffffffffffffffffffffffffffffffffffd5900000012d2ffffffffffffffffffffffffffffffffffffffffffffff680000000ecbffffffffffffffffffffffffffffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe2af8058392817060a1a3f74c8ffffffffffffffffffffffffffffffffeb0000000000000000000000000036cfffffffffffffffffffffffffffffeb000000000000000000000000000004a7ffffffffffffffffffffffffffeb00000f5a9dd0edfbf0ca841900000003c2ffffffffffffffffffffffffec3da8f9fffffffffffffffff0410000002bffffffffffffffffffffffffffffffffffffffffffffffffffee12000000cbffffffffffffffffffffffffffffffffffffffffffffffffff6900000090ffffffffffffffffffffffffffffffffffffffffffffffffff9600000078ffffffffffffffffffffffffffffffffffffffffffffffffff9a0000007effffffffffffffffffffffffffffffffffffffffffffffffff73000000a5fffffffffffffffffffffffffffffffffffffffffffffffff51b000009edfffffffffffffffffffffffffffffffffffffffffffffff7540000007efffffffffffffffffffffffffffffffffffffffffff3d3912400000055fcffffffffffffffffffffffffffffffffff1700000000000000001692feffffffffffffffffffffffffffffffffffff17000000000000002db8feffffffffffffffffffffffffffffffffffffff170000000000000000002bc3fffffffffffffffffffffffffffffffffffffffffffdf0cf922e00000003a5fffffffffffffffffffffffffffffffffffffffffffffffffd8700000007d1ffffffffffffffffffffffffffffffffffffffffffffffffff780000004ffffffffffffffffffffffffffffffffffffffffffffffffffff308000006f6ffffffffffffffffffffffffffffffffffffffffffffffffff3c000000d0ffffffffffffffffffffffffffffffffffffffffffffffffff4d000000c6ffffffffffffffffffffffffffffffffffffffffffffffffff35000000ddffffffffffffffffffffffffffffffffffffffffffffffffea0300000bf9ffffffffffffffffffffffffffffffffffffffffffffffff6200000054ffffffffffffffffffffff47bafefffffffffffffffffff56b00000002cbffffffffffffffffffffff0b001e71a9d7edfbf6e4ba771a000000007cffffffffffffffffffffffff0b0000000000000000000000000000017dffffffffffffffffffffffffff0b000000000000000000000000003cc8ffffffffffffffffffffffffffffe9b989593827160608162a5689dbffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbd0100000000f3fffffffffffffffffffffffffffffffffffffffffffff3200000000000f3ffffffffffffffffffffffffffffffffffffffffffff69000000000000f3ffffffffffffffffffffffffffffffffffffffffffbf01000b0e000000f3fffffffffffffffffffffffffffffffffffffffff42100008e1f000000f3ffffffffffffffffffffffffffffffffffffffff6a000035fc1f000000f3ffffffffffffffffffffffffffffffffffffffc0010004d1ff1f000000f3fffffffffffffffffffffffffffffffffffff42200007affff1f000000f3ffffffffffffffffffffffffffffffffffff6c000026f7ffff1f000000f3ffffffffffffffffffffffffffffffffffc1010001c1ffffff1f000000f3fffffffffffffffffffffffffffffffff523000066ffffffff1f000000f3ffffffffffffffffffffffffffffffff6d000019f0ffffffff1f000000f3ffffffffffffffffffffffffffffffc2010000aeffffffffff1f000000f3fffffffffffffffffffffffffffff524000052ffffffffffff1f000000f3ffffffffffffffffffffffffffff6e00000fe6ffffffffffff1f000000f3ffffffffffffffffffffffffffc30200009affffffffffffff1f000000f3fffffffffffffffffffffffff62400003ffeffffffffffffff1f000000f3ffffffffffffffffffffffff70000008daffffffffffffffff1f000000f3fffffffffffffffffffffff602000086ffffffffffffffffff1f000000f3fffffffffffffffffffffff3000000000000000000000000000000000000000000cbfffffffffffffff3000000000000000000000000000000000000000000cbfffffffffffffff3000000000000000000000000000000000000000000cbffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f000008672f120514275997efffffffffffffffffffffffffffffffffff4f00000000000000000000000b73f6ffffffffffffffffffffffffffffff4f000000000000000000000000002bdeffffffffffffffffffffffffffff60538cbad2e7faf0d599370000000025ebffffffffffffffffffffffffffffffffffffffffffffffffa0090000005bffffffffffffffffffffffffffffffffffffffffffffffffffb100000001d2ffffffffffffffffffffffffffffffffffffffffffffffffff560000007effffffffffffffffffffffffffffffffffffffffffffffffffb80000003dffffffffffffffffffffffffffffffffffffffffffffffffffec00000022fffffffffffffffffffffffffffffffffffffffffffffffffffd00000011ffffffffffffffffffffffffffffffffffffffffffffffffffec00000022ffffffffffffffffffffffffffffffffffffffffffffffffffb80000003cffffffffffffffffffffffffffffffffffffffffffffffffff580000007dffffffffffffffffffffffffffffffffffffffffffffffffb301000000cfffffffffffffffffffffff4cb1fdffffffffffffffffffa40a00000058ffffffffffffffffffffffff17001a6ea9d7eefbf2d69b380000000024e8ffffffffffffffffffffffff1700000000000000000000000000002de0ffffffffffffffffffffffffff17000000000000000000000000127ef9ffffffffffffffffffffffffffffebba8a59372615050a1a3569a6f7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffca753915050d233866a3e0ffffffffffffffffffffffffffffffffffd13f0000000000000000000000f7ffffffffffffffffffffffffffffff9d07000000000000000000000000f7ffffffffffffffffffffffffffff9700000000469fdbf3f5da9e490100f7ffffffffffffffffffffffffffca0300000eb3ffffffffffffffffd84df8fffffffffffffffffffffffffa2d000007c8ffffffffffffffffffffffffffffffffffffffffffffffff9100000081ffffffffffffffffffffffffffffffffffffffffffffffffff28000010f6ffffffffffffffffffffffffffffffffffffffffffffffffc20000006affffffffffffffffffffffffffffffffffffffffffffffffff79000000b2ffffffffffffffffffffffffffffffffffffffffffffffffff43000000ebffeb903d1a0616306fc0ffffffffffffffffffffffffffffff0f000015ffa211000000000000000041dcfffffffffffffffffffffffff30000003087000000000000000000000013c6ffffffffffffffffffffffe30000000f00000055beeef7d8881000000017e6ffffffffffffffffffffd30000000000019dffffffffffffe12200000056ffffffffffffffffffffd100000000006effffffffffffffffce04000002dbffffffffffffffffffdd0000000006eaffffffffffffffffff550000008bffffffffffffffffffe90000000043ffffffffffffffffffffa90000004dfffffffffffffffffff80200000074ffffffffffffffffffffdb0000002cffffffffffffffffffff2200000088ffffffffffffffffffffef00000019ffffffffffffffffffff4d00000088ffffffffffffffffffffee0000001affffffffffffffffffff7e00000074ffffffffffffffffffffdb0000002dffffffffffffffffffffcd00000042ffffffffffffffffffffa900000052ffffffffffffffffffffff21000005e9ffffffffffffffffff5400000093ffffffffffffffffffffff8f0000006dffffffffffffffffcd04000007e6fffffffffffffffffffffff9220000019effffffffffffe1230000006cffffffffffffffffffffffffffc00600000056beeff8d888110000002af3ffffffffffffffffffffffffffffa603000000000000000000000026ddffffffffffffffffffffffffffffffffc8280000000000000000025deffffffffffffffffffffffffffffffffffffffab25a2a1106193b7ed7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff47000000000000000000000000000000000000f7ffffffffffffffffffff47000000000000000000000000000000000003faffffffffffffffffffff4700000000000000000000000000000000004afffffffffffffffffffffffffffffffffffffffffffffffffc1a000000adffffffffffffffffffffffffffffffffffffffffffffffffb300000015faffffffffffffffffffffffffffffffffffffffffffffffff5100000073ffffffffffffffffffffffffffffffffffffffffffffffffea05000000d6ffffffffffffffffffffffffffffffffffffffffffffffff8d00000039ffffffffffffffffffffffffffffffffffffffffffffffffff2c0000009dffffffffffffffffffffffffffffffffffffffffffffffffc90000000cf3ffffffffffffffffffffffffffffffffffffffffffffffff6700000063fffffffffffffffffffffffffffffffffffffffffffffffff60f000000c6ffffffffffffffffffffffffffffffffffffffffffffffffa300000029ffffffffffffffffffffffffffffffffffffffffffffffffff410000008cffffffffffffffffffffffffffffffffffffffffffffffffdf01000005e9ffffffffffffffffffffffffffffffffffffffffffffffff7d00000052fffffffffffffffffffffffffffffffffffffffffffffffffd1e000000b5ffffffffffffffffffffffffffffffffffffffffffffffffb90000001bfcffffffffffffffffffffffffffffffffffffffffffffffff570000007bffffffffffffffffffffffffffffffffffffffffffffffffee07000001ddffffffffffffffffffffffffffffffffffffffffffffffff9300000042ffffffffffffffffffffffffffffffffffffffffffffffffff31000000a5ffffffffffffffffffffffffffffffffffffffffffffffffd000000010f7ffffffffffffffffffffffffffffffffffffffffffffffff6d0000006bfffffffffffffffffffffffffffffffffffffffffffffffff913000000ceffffffffffffffffffffffffffffffffffffffffffffffffa900000031ffffffffffffffffffffffffffffffffffffffffffffffffff4700000094ffffffffffffffffffffffffffffffffffffffffffffffffe302000008eeffffffffffffffffffffffffffffffffffffffffffffffff840000005afffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9a8602c13050c1d4882dfffffffffffffffffffffffffffffffffffffa918000000000000000000025eeeffffffffffffffffffffffffffffff780000000000000000000000000023e5ffffffffffffffffffffffffff9f0000000037a8e4faf1c66d0500000033fdfffffffffffffffffffffff81600000065fdffffffffffffc40a0000009fffffffffffffffffffffffb600000021faffffffffffffffff8d00000047ffffffffffffffffffffff820000007bffffffffffffffffffeb01000014ffffffffffffffffffffff6d000000a2ffffffffffffffffffff15000001fdffffffffffffffffffff76000000a2ffffffffffffffffffff14000007ffffffffffffffffffffffa10000007bffffffffffffffffffec01000033ffffffffffffffffffffffec08000022fbffffffffffffffff8e00000087ffffffffffffffffffffffff7d00000068fdffffffffffffc70b00001ef2fffffffffffffffffffffffffb5500000039aae5fbf2c87006000013d0fffffffffffffffffffffffffffffe93160000000000000000000153e3ffffffffffffffffffffffffffffffffffbd2e000000000000000780f0ffffffffffffffffffffffffffffffffce3500000000000000000000000e87fcffffffffffffffffffffffffffb3060000004fb2e6faf0cd82150000004ffaffffffffffffffffffffffda0b000004a9ffffffffffffffe93600000076ffffffffffffffffffffff5600000084ffffffffffffffffffe80e000005e2fffffffffffffffffff606000008f4ffffffffffffffffffff6f0000008dffffffffffffffffffcb00000039ffffffffffffffffffffffac0000005cffffffffffffffffffbc0000004affffffffffffffffffffffbe0000004dffffffffffffffffffcc00000039ffffffffffffffffffffffac0000005effffffffffffffffffea00000008f4ffffffffffffffffffff6e0000007cffffffffffffffffffff2f00000085ffffffffffffffffffe70d000000c1ffffffffffffffffffff9300000004a9ffffffffffffffe83400000028fcfffffffffffffffffffffa2d0000000050b2e7fbf2cd821400000002b8ffffffffffffffffffffffffe523000000000000000000000000000299fffffffffffffffffffffffffffff16605000000000000000000002cc5ffffffffffffffffffffffffffffffffffe88e542512040b1b3d72c1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8a259251008203f8be2ffffffffffffffffffffffffffffffffffffffa91d0000000000000000047ffaffffffffffffffffffffffffffffffff7b00000000000000000000000040f8ffffffffffffffffffffffffffff94000000004db9ecf7da8b1300000057ffffffffffffffffffffffffffdc050000008fffffffffffffe527000000acffffffffffffffffffffffff630000005fffffffffffffffffd406000025fbfffffffffffffffffffffb0c000002e0ffffffffffffffffff5f000000b2ffffffffffffffffffffc600000036ffffffffffffffffffffb50000005fffffffffffffffffffffa000000068ffffffffffffffffffffe700000011feffffffffffffffffff8d0000007cfffffffffffffffffffffb00000000dfffffffffffffffffff8c0000007cfffffffffffffffffffffb00000000b4ffffffffffffffffff9e00000069ffffffffffffffffffffe7000000008dffffffffffffffffffbe00000038ffffffffffffffffffffb6000000007bfffffffffffffffffff606000003e2ffffffffffffffffff62000000006fffffffffffffffffffff4f00000064ffffffffffffffffd8080000000062ffffffffffffffffffffc50000000096ffffffffffffe82b000000000064ffffffffffffffffffffff6c0000000051bbeff8dc8e1500001000000074fffffffffffffffffffffff94f0000000000000000000000288c00000084fffffffffffffffffffffffffd810b000000000000000052ea830000009fffffffffffffffffffffffffffffea8d471d090d2864c1ffff5b000000d4ffffffffffffffffffffffffffffffffffffffffffffffffff2100000dfdffffffffffffffffffffffffffffffffffffffffffffffffd900000052ffffffffffffffffffffffffffffffffffffffffffffffffff75000000b8ffffffffffffffffffffffffffffffffffffffffffffffffe30d000023fefffffffffffffffffffffffffffffffffffffffffffffff945000000b7ffffffffffffffffffffffffff7fa2fdffffffffffffffe8480000005effffffffffffffffffffffffffff63002080c4ecfae7c0740e00000034f4ffffffffffffffffffffffffffff6300000000000000000000000043f0ffffffffffffffffffffffffffffff6300000000000000000000118efdfffffffffffffffffffffffffffffffff4bb7f462b15040b25569ff4ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-  return "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe891412108153069c4ffffffffffffffffffffffffffffffffffffffff9409000000000000000049e7ffffffffffffffffffffffffffffffffff61000000000000000000000017ddffffffffffffffffffffffffffffff840000000573d3f5e5a62b00000028f0ffffffffffffffffffffffffffda04000008bcfffffffffff44200000073ffffffffffffffffffffffffff5700000088ffffffffffffffe812000008e3ffffffffffffffffffffffea02000015f9ffffffffffffffff8100000080ffffffffffffffffffffff9c00000072ffffffffffffffffffe40100002fffffffffffffffffffffff51000000b8ffffffffffffffffffff2a000000e2ffffffffffffffffffff21000001f0ffffffffffffffffffff65000000b3fffffffffffffffffff602000018ffffffffffffffffffffff8b0000008affffffffffffffffffd200000036ffffffffffffffffffffffa900000063ffffffffffffffffffc00000004effffffffffffffffffffffc100000052ffffffffffffffffffb500000057ffffffffffffffffffffffc900000046ffffffffffffffffffa90000005fffffffffffffffffffffffd20000003affffffffffffffffffa900000060ffffffffffffffffffffffd30000003affffffffffffffffffb400000057ffffffffffffffffffffffca00000046ffffffffffffffffffc00000004effffffffffffffffffffffc100000052ffffffffffffffffffd100000037ffffffffffffffffffffffa900000063fffffffffffffffffff602000019ffffffffffffffffffffff8b00000089ffffffffffffffffffff21000001f1ffffffffffffffffffff66000000b3ffffffffffffffffffff50000000b8ffffffffffffffffffff2a000000e1ffffffffffffffffffff9c00000073ffffffffffffffffffe40100002fffffffffffffffffffffffea02000015f9ffffffffffffffff8200000080ffffffffffffffffffffffff5700000088ffffffffffffffe812000008e2ffffffffffffffffffffffffda04000008bcfffffffffff44300000073ffffffffffffffffffffffffffff830000000674d3f6e6a72b00000028f0ffffffffffffffffffffffffffffff60000000000000000000000016ddfffffffffffffffffffffffffffffffffe9309000000000000000048e6ffffffffffffffffffffffffffffffffffffffe88f3f1f07132e68c3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9d7b28e69441f02000000afffffffffffffffffffffffffffffffffffff6300000000000000000000afffffffffffffffffffffffffffffffffffff6300000000000000000000afffffffffffffffffffffffffffffffffffff6a274c7095b9de64000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000afffffffffffffffffffffffffffffffffffffffffffffffffff67000000affffffffffffffffffffffffffffffffffffff7000000000000000000000000000000003bfffffffffffffffffffffffff7000000000000000000000000000000003bfffffffffffffffffffffffff7000000000000000000000000000000003bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd48b56271005142a5ea0f6ffffffffffffffffffffffffffffffffdb7c20000000000000000000001392feffffffffffffffffffffffffffff1f00000000000000000000000000004cf9ffffffffffffffffffffffffff1f0000003784c7e7f9e8b1480000000056ffffffffffffffffffffffffff1f015accffffffffffffffff9701000000b0ffffffffffffffffffffffff58caffffffffffffffffffffff770000003cfffffffffffffffffffffffffffffffffffffffffffffffffff107000002edffffffffffffffffffffffffffffffffffffffffffffffffff3a000000ccffffffffffffffffffffffffffffffffffffffffffffffffff4c000000baffffffffffffffffffffffffffffffffffffffffffffffffff32000000cbffffffffffffffffffffffffffffffffffffffffffffffffec05000002edffffffffffffffffffffffffffffffffffffffffffffffff8d00000039ffffffffffffffffffffffffffffffffffffffffffffffffeb140000009affffffffffffffffffffffffffffffffffffffffffffffff520000002afbffffffffffffffffffffffffffffffffffffffffffffff8c00000003c7ffffffffffffffffffffffffffffffffffffffffffffffb30300000085ffffffffffffffffffffffffffffffffffffffffffffffc50a0000005dfeffffffffffffffffffffffffffffffffffffffffffffd2110000004efbffffffffffffffffffffffffffffffffffffffffffffdb1800000042f8ffffffffffffffffffffffffffffffffffffffffffffe21f00000039f3ffffffffffffffffffffffffffffffffffffffffffffe92600000030efffffffffffffffffffffffffffffffffffffffffffffee2e00000029eafffffffffffffffffffffffffffffffffffffffffffff33700000022e5fffffffffffffffffffffffffffffffffffffffffffff7410000001cdffffffffffffffffffffffffffffffffffffffffffffffb4c00000017d9fffffffffffffffffffffffffffffffffffffffffffffd5900000012d2ffffffffffffffffffffffffffffffffffffffffffffff680000000ecbffffffffffffffffffffffffffffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffef0000000000000000000000000000000000008bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe2af8058392817060a1a3f74c8ffffffffffffffffffffffffffffffffeb0000000000000000000000000036cfffffffffffffffffffffffffffffeb000000000000000000000000000004a7ffffffffffffffffffffffffffeb00000f5a9dd0edfbf0ca841900000003c2ffffffffffffffffffffffffec3da8f9fffffffffffffffff0410000002bffffffffffffffffffffffffffffffffffffffffffffffffffee12000000cbffffffffffffffffffffffffffffffffffffffffffffffffff6900000090ffffffffffffffffffffffffffffffffffffffffffffffffff9600000078ffffffffffffffffffffffffffffffffffffffffffffffffff9a0000007effffffffffffffffffffffffffffffffffffffffffffffffff73000000a5fffffffffffffffffffffffffffffffffffffffffffffffff51b000009edfffffffffffffffffffffffffffffffffffffffffffffff7540000007efffffffffffffffffffffffffffffffffffffffffff3d3912400000055fcffffffffffffffffffffffffffffffffff1700000000000000001692feffffffffffffffffffffffffffffffffffff17000000000000002db8feffffffffffffffffffffffffffffffffffffff170000000000000000002bc3fffffffffffffffffffffffffffffffffffffffffffdf0cf922e00000003a5fffffffffffffffffffffffffffffffffffffffffffffffffd8700000007d1ffffffffffffffffffffffffffffffffffffffffffffffffff780000004ffffffffffffffffffffffffffffffffffffffffffffffffffff308000006f6ffffffffffffffffffffffffffffffffffffffffffffffffff3c000000d0ffffffffffffffffffffffffffffffffffffffffffffffffff4d000000c6ffffffffffffffffffffffffffffffffffffffffffffffffff35000000ddffffffffffffffffffffffffffffffffffffffffffffffffea0300000bf9ffffffffffffffffffffffffffffffffffffffffffffffff6200000054ffffffffffffffffffffff47bafefffffffffffffffffff56b00000002cbffffffffffffffffffffff0b001e71a9d7edfbf6e4ba771a000000007cffffffffffffffffffffffff0b0000000000000000000000000000017dffffffffffffffffffffffffff0b000000000000000000000000003cc8ffffffffffffffffffffffffffffe9b989593827160608162a5689dbffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffbd0100000000f3fffffffffffffffffffffffffffffffffffffffffffff3200000000000f3ffffffffffffffffffffffffffffffffffffffffffff69000000000000f3ffffffffffffffffffffffffffffffffffffffffffbf01000b0e000000f3fffffffffffffffffffffffffffffffffffffffff42100008e1f000000f3ffffffffffffffffffffffffffffffffffffffff6a000035fc1f000000f3ffffffffffffffffffffffffffffffffffffffc0010004d1ff1f000000f3fffffffffffffffffffffffffffffffffffff42200007affff1f000000f3ffffffffffffffffffffffffffffffffffff6c000026f7ffff1f000000f3ffffffffffffffffffffffffffffffffffc1010001c1ffffff1f000000f3fffffffffffffffffffffffffffffffff523000066ffffffff1f000000f3ffffffffffffffffffffffffffffffff6d000019f0ffffffff1f000000f3ffffffffffffffffffffffffffffffc2010000aeffffffffff1f000000f3fffffffffffffffffffffffffffff524000052ffffffffffff1f000000f3ffffffffffffffffffffffffffff6e00000fe6ffffffffffff1f000000f3ffffffffffffffffffffffffffc30200009affffffffffffff1f000000f3fffffffffffffffffffffffff62400003ffeffffffffffffff1f000000f3ffffffffffffffffffffffff70000008daffffffffffffffff1f000000f3fffffffffffffffffffffff602000086ffffffffffffffffff1f000000f3fffffffffffffffffffffff3000000000000000000000000000000000000000000cbfffffffffffffff3000000000000000000000000000000000000000000cbfffffffffffffff3000000000000000000000000000000000000000000cbffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffff1f000000f3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000000000000000000000000002fffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f00000fffffffffffffffffffffffffffffffffffffffffffffffffffff4f000008672f120514275997efffffffffffffffffffffffffffffffffff4f00000000000000000000000b73f6ffffffffffffffffffffffffffffff4f000000000000000000000000002bdeffffffffffffffffffffffffffff60538cbad2e7faf0d599370000000025ebffffffffffffffffffffffffffffffffffffffffffffffffa0090000005bffffffffffffffffffffffffffffffffffffffffffffffffffb100000001d2ffffffffffffffffffffffffffffffffffffffffffffffffff560000007effffffffffffffffffffffffffffffffffffffffffffffffffb80000003dffffffffffffffffffffffffffffffffffffffffffffffffffec00000022fffffffffffffffffffffffffffffffffffffffffffffffffffd00000011ffffffffffffffffffffffffffffffffffffffffffffffffffec00000022ffffffffffffffffffffffffffffffffffffffffffffffffffb80000003cffffffffffffffffffffffffffffffffffffffffffffffffff580000007dffffffffffffffffffffffffffffffffffffffffffffffffb301000000cfffffffffffffffffffffff4cb1fdffffffffffffffffffa40a00000058ffffffffffffffffffffffff17001a6ea9d7eefbf2d69b380000000024e8ffffffffffffffffffffffff1700000000000000000000000000002de0ffffffffffffffffffffffffff17000000000000000000000000127ef9ffffffffffffffffffffffffffffebba8a59372615050a1a3569a6f7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffca753915050d233866a3e0ffffffffffffffffffffffffffffffffffd13f0000000000000000000000f7ffffffffffffffffffffffffffffff9d07000000000000000000000000f7ffffffffffffffffffffffffffff9700000000469fdbf3f5da9e490100f7ffffffffffffffffffffffffffca0300000eb3ffffffffffffffffd84df8fffffffffffffffffffffffffa2d000007c8ffffffffffffffffffffffffffffffffffffffffffffffff9100000081ffffffffffffffffffffffffffffffffffffffffffffffffff28000010f6ffffffffffffffffffffffffffffffffffffffffffffffffc20000006affffffffffffffffffffffffffffffffffffffffffffffffff79000000b2ffffffffffffffffffffffffffffffffffffffffffffffffff43000000ebffeb903d1a0616306fc0ffffffffffffffffffffffffffffff0f000015ffa211000000000000000041dcfffffffffffffffffffffffff30000003087000000000000000000000013c6ffffffffffffffffffffffe30000000f00000055beeef7d8881000000017e6ffffffffffffffffffffd30000000000019dffffffffffffe12200000056ffffffffffffffffffffd100000000006effffffffffffffffce04000002dbffffffffffffffffffdd0000000006eaffffffffffffffffff550000008bffffffffffffffffffe90000000043ffffffffffffffffffffa90000004dfffffffffffffffffff80200000074ffffffffffffffffffffdb0000002cffffffffffffffffffff2200000088ffffffffffffffffffffef00000019ffffffffffffffffffff4d00000088ffffffffffffffffffffee0000001affffffffffffffffffff7e00000074ffffffffffffffffffffdb0000002dffffffffffffffffffffcd00000042ffffffffffffffffffffa900000052ffffffffffffffffffffff21000005e9ffffffffffffffffff5400000093ffffffffffffffffffffff8f0000006dffffffffffffffffcd04000007e6fffffffffffffffffffffff9220000019effffffffffffe1230000006cffffffffffffffffffffffffffc00600000056beeff8d888110000002af3ffffffffffffffffffffffffffffa603000000000000000000000026ddffffffffffffffffffffffffffffffffc8280000000000000000025deffffffffffffffffffffffffffffffffffffffab25a2a1106193b7ed7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff47000000000000000000000000000000000000f7ffffffffffffffffffff47000000000000000000000000000000000003faffffffffffffffffffff4700000000000000000000000000000000004afffffffffffffffffffffffffffffffffffffffffffffffffc1a000000adffffffffffffffffffffffffffffffffffffffffffffffffb300000015faffffffffffffffffffffffffffffffffffffffffffffffff5100000073ffffffffffffffffffffffffffffffffffffffffffffffffea05000000d6ffffffffffffffffffffffffffffffffffffffffffffffff8d00000039ffffffffffffffffffffffffffffffffffffffffffffffffff2c0000009dffffffffffffffffffffffffffffffffffffffffffffffffc90000000cf3ffffffffffffffffffffffffffffffffffffffffffffffff6700000063fffffffffffffffffffffffffffffffffffffffffffffffff60f000000c6ffffffffffffffffffffffffffffffffffffffffffffffffa300000029ffffffffffffffffffffffffffffffffffffffffffffffffff410000008cffffffffffffffffffffffffffffffffffffffffffffffffdf01000005e9ffffffffffffffffffffffffffffffffffffffffffffffff7d00000052fffffffffffffffffffffffffffffffffffffffffffffffffd1e000000b5ffffffffffffffffffffffffffffffffffffffffffffffffb90000001bfcffffffffffffffffffffffffffffffffffffffffffffffff570000007bffffffffffffffffffffffffffffffffffffffffffffffffee07000001ddffffffffffffffffffffffffffffffffffffffffffffffff9300000042ffffffffffffffffffffffffffffffffffffffffffffffffff31000000a5ffffffffffffffffffffffffffffffffffffffffffffffffd000000010f7ffffffffffffffffffffffffffffffffffffffffffffffff6d0000006bfffffffffffffffffffffffffffffffffffffffffffffffff913000000ceffffffffffffffffffffffffffffffffffffffffffffffffa900000031ffffffffffffffffffffffffffffffffffffffffffffffffff4700000094ffffffffffffffffffffffffffffffffffffffffffffffffe302000008eeffffffffffffffffffffffffffffffffffffffffffffffff840000005afffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9a8602c13050c1d4882dfffffffffffffffffffffffffffffffffffffa918000000000000000000025eeeffffffffffffffffffffffffffffff780000000000000000000000000023e5ffffffffffffffffffffffffff9f0000000037a8e4faf1c66d0500000033fdfffffffffffffffffffffff81600000065fdffffffffffffc40a0000009fffffffffffffffffffffffb600000021faffffffffffffffff8d00000047ffffffffffffffffffffff820000007bffffffffffffffffffeb01000014ffffffffffffffffffffff6d000000a2ffffffffffffffffffff15000001fdffffffffffffffffffff76000000a2ffffffffffffffffffff14000007ffffffffffffffffffffffa10000007bffffffffffffffffffec01000033ffffffffffffffffffffffec08000022fbffffffffffffffff8e00000087ffffffffffffffffffffffff7d00000068fdffffffffffffc70b00001ef2fffffffffffffffffffffffffb5500000039aae5fbf2c87006000013d0fffffffffffffffffffffffffffffe93160000000000000000000153e3ffffffffffffffffffffffffffffffffffbd2e000000000000000780f0ffffffffffffffffffffffffffffffffce3500000000000000000000000e87fcffffffffffffffffffffffffffb3060000004fb2e6faf0cd82150000004ffaffffffffffffffffffffffda0b000004a9ffffffffffffffe93600000076ffffffffffffffffffffff5600000084ffffffffffffffffffe80e000005e2fffffffffffffffffff606000008f4ffffffffffffffffffff6f0000008dffffffffffffffffffcb00000039ffffffffffffffffffffffac0000005cffffffffffffffffffbc0000004affffffffffffffffffffffbe0000004dffffffffffffffffffcc00000039ffffffffffffffffffffffac0000005effffffffffffffffffea00000008f4ffffffffffffffffffff6e0000007cffffffffffffffffffff2f00000085ffffffffffffffffffe70d000000c1ffffffffffffffffffff9300000004a9ffffffffffffffe83400000028fcfffffffffffffffffffffa2d0000000050b2e7fbf2cd821400000002b8ffffffffffffffffffffffffe523000000000000000000000000000299fffffffffffffffffffffffffffff16605000000000000000000002cc5ffffffffffffffffffffffffffffffffffe88e542512040b1b3d72c1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8a259251008203f8be2ffffffffffffffffffffffffffffffffffffffa91d0000000000000000047ffaffffffffffffffffffffffffffffffff7b00000000000000000000000040f8ffffffffffffffffffffffffffff94000000004db9ecf7da8b1300000057ffffffffffffffffffffffffffdc050000008fffffffffffffe527000000acffffffffffffffffffffffff630000005fffffffffffffffffd406000025fbfffffffffffffffffffffb0c000002e0ffffffffffffffffff5f000000b2ffffffffffffffffffffc600000036ffffffffffffffffffffb50000005fffffffffffffffffffffa000000068ffffffffffffffffffffe700000011feffffffffffffffffff8d0000007cfffffffffffffffffffffb00000000dfffffffffffffffffff8c0000007cfffffffffffffffffffffb00000000b4ffffffffffffffffff9e00000069ffffffffffffffffffffe7000000008dffffffffffffffffffbe00000038ffffffffffffffffffffb6000000007bfffffffffffffffffff606000003e2ffffffffffffffffff62000000006fffffffffffffffffffff4f00000064ffffffffffffffffd8080000000062ffffffffffffffffffffc50000000096ffffffffffffe82b000000000064ffffffffffffffffffffff6c0000000051bbeff8dc8e1500001000000074fffffffffffffffffffffff94f0000000000000000000000288c00000084fffffffffffffffffffffffffd810b000000000000000052ea830000009fffffffffffffffffffffffffffffea8d471d090d2864c1ffff5b000000d4ffffffffffffffffffffffffffffffffffffffffffffffffff2100000dfdffffffffffffffffffffffffffffffffffffffffffffffffd900000052ffffffffffffffffffffffffffffffffffffffffffffffffff75000000b8ffffffffffffffffffffffffffffffffffffffffffffffffe30d000023fefffffffffffffffffffffffffffffffffffffffffffffff945000000b7ffffffffffffffffffffffffff7fa2fdffffffffffffffe8480000005effffffffffffffffffffffffffff63002080c4ecfae7c0740e00000034f4ffffffffffffffffffffffffffff6300000000000000000000000043f0ffffffffffffffffffffffffffffff6300000000000000000000118efdfffffffffffffffffffffffffffffffff4bb7f462b15040b25569ff4ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    *returnArrayLength = sizeof(pixel_array_base16) / sizeof(*pixel_array_base16);
+    return pixel_array_base16;
 }
+
+
 void DrawDigitCharacter(RGBABitmapImage *image, double topx, double topy, double digit){
   double x, y;
   char *allCharData, *colorChars;
   size_t allCharDataLength, colorCharsLength;
   NumberReference *colorReference;
-  StringReference *errorMessage;
   RGBA *color;
 
   colorReference = (NumberReference *)calloc(sizeof(NumberReference), 1);
-  errorMessage = (StringReference *)calloc(sizeof(StringReference), 1);
   color = (RGBA *)calloc(sizeof(RGBA), 1);
 
   colorChars = (char*)calloc(sizeof(char) * (2.0), 1);
@@ -4512,7 +3576,7 @@ void DrawDigitCharacter(RGBABitmapImage *image, double topx, double topy, double
       colorChars[1] = allCharData[(int)(digit*30.0*37.0*2.0 + y*2.0*30.0 + x*2.0 + 1.0)];
 
       ToUpperCase(colorChars, colorCharsLength);
-      CreateNumberFromStringWithCheck(colorChars, colorCharsLength, 16.0, colorReference, errorMessage);
+      CreateNumberFromStringWithCheck(colorChars, colorCharsLength, 16.0, colorReference);
       color->r = colorReference->numberValue/255.0;
       color->g = colorReference->numberValue/255.0;
       color->b = colorReference->numberValue/255.0;
@@ -4521,10 +3585,17 @@ void DrawDigitCharacter(RGBABitmapImage *image, double topx, double topy, double
     }
   }
 }
+
+
+static char pixel_array[] = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011000000110000000000000000000000110000001100000011000000110000001100000011000000110000000000000000000000000000000000000000000000000000000000000000000000000000110110001101100011011000110110000000000000000000000000001100110011001101111111101100110011001101111111101100110011001100000000000000000000000000000000000011000011111101111111111011000111110000111111000011111000110111111111101111110000110000000000000000000011100001101100011011011011101100000110000011000001100000110111011011011000110110000111000000000000000001111111001100011111100110001101100001110000011100001101100110011001100110011011000011100000000000000000000000000000000000000000000000000000000000000000000000000000110000011100000110000011100000000000000000000001100000001100000001100000011000000110000001100000011000000110000001100000110000011000000000000000000000000110000011000001100000011000000110000001100000011000000110000001100000001100000001100000000000000000000000000000000001001100101011010001111001111111100111100010110101001100100000000000000000000000000000000000000000001100000011000000110001111111111111111000110000001100000011000000000000000000000000000000000000000110000011000001110000011100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111111111111111100000000000000000000000000000000000000000000000000000000000000000001110000011100000000000000000000000000000000000000000000000000000000000000000000000000000001100000011000001100000011000001100000011000001100000011000001100000011000001100000011000000000000000000000000111100011001101100001111000111110011111101101111110011111000111100001101100110001111000000000000000000011111100001100000011000000110000001100000011000000110000001100000011110000111000001100000000000000000001111111100000011000000110000011000001100000110000011000001100000110000001110011101111110000000000000000001111110111001111100000011000000111000000111111011100000110000001100000011100111011111100000000000000000001100000011000000110000001100000011000011111111001100110011011000111100001110000011000000000000000000000111111011100111110000001100000011100000011111110000001100000011000000110000001111111111000000000000000001111110111001111100001111000011111000110111111100000011000000110000001111100111011111100000000000000000000011000000110000001100000011000001100000110000011000001100000011000000110000001111111100000000000000000111111011100111110000111100001111100111011111101110011111000011110000111110011101111110000000000000000001111110111001111100000011000000110000001111111011100111110000111100001111100111011111100000000000000000000000000001110000011100000000000000000000011100000111000000000000000000000000000000000000000000000000000000110000011000001110000011100000000000000000000011100000111000000000000000000000000000000000000000000001100000001100000001100000001100000001100000001100000110000011000001100000110000011000000000000000000000000000000000000011111111111111110000000011111111111111110000000000000000000000000000000000000000000000000000011000001100000110000011000001100000110000000110000000110000000110000000110000000110000000000000000000011000000000000000000000011000000110000011000001100000110000001100001111000011011111100000000000000000111111000000011011110011110110111100101110111011110000110111111000000000000000000000000000000000000000001100001111000011110000111100001111111111110000111100001111000011011001100011110000011000000000000000000001111111111000111100001111000011111000110111111111100011110000111100001111100011011111110000000000000000011111101110011100000011000000110000001100000011000000110000001100000011111001110111111000000000000000000011111101110011111000111100001111000011110000111100001111000011111000110111001100111111000000000000000011111111000000110000001100000011000000110011111100000011000000110000001100000011111111110000000000000000000000110000001100000011000000110000001100000011001111110000001100000011000000111111111100000000000000000111111011100111110000111100001111110011000000110000001100000011000000111110011101111110000000000000000011000011110000111100001111000011110000111111111111000011110000111100001111000011110000110000000000000000011111100001100000011000000110000001100000011000000110000001100000011000000110000111111000000000000000000011111001110111011000110110000001100000011000000110000001100000011000000110000001100000000000000000000011000011011000110011001100011011000011110000011100001111000110110011001101100011110000110000000000000000111111110000001100000011000000110000001100000011000000110000001100000011000000110000001100000000000000001100001111000011110000111100001111000011110000111101101111111111111111111110011111000011000000000000000011100011111000111111001111110011111110111101101111011111110011111100111111000111110001110000000000000000011111101110011111000011110000111100001111000011110000111100001111000011111001110111111000000000000000000000001100000011000000110000001100000011011111111110001111000011110000111110001101111111000000000000000011111100011101101111101111011011110000111100001111000011110000111100001101100110001111000000000000000000110000110110001100110011000110110000111101111111111000111100001111000011111000110111111100000000000000000111111011100111110000001100000011100000011111100000011100000011000000111110011101111110000000000000000000011000000110000001100000011000000110000001100000011000000110000001100000011000111111110000000000000000011111101110011111000011110000111100001111000011110000111100001111000011110000111100001100000000000000000001100000111100001111000110011001100110110000111100001111000011110000111100001111000011000000000000000011000011111001111111111111111111110110111101101111000011110000111100001111000011110000110000000000000000110000110110011001100110001111000011110000011000001111000011110001100110011001101100001100000000000000000001100000011000000110000001100000011000000110000011110000111100011001100110011011000011000000000000000011111111000000110000001100000110000011000111111000110000011000001100000011000000111111110000000000000000001111000000110000001100000011000000110000001100000011000000110000001100000011000011110000000000110000001100000001100000011000000011000000110000000110000001100000001100000011000000011000000110000000000000000000111100001100000011000000110000001100000011000000110000001100000011000000110000001111000000000000000000000000000000000000000000000000000000000000000000000000001100001101100110001111000001100011111111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000110000001110000001100000011100000000000000000111111101100001111000011111111101100000011000011011111100000000000000000000000000000000000000000000000000111111111000011110000111100001111000011011111110000001100000011000000110000001100000011000000000000000001111110110000110000001100000011000000111100001101111110000000000000000000000000000000000000000000000000111111101100001111000011110000111100001111111110110000001100000011000000110000001100000000000000000000001111111000000011000000110111111111000011110000110111111000000000000000000000000000000000000000000000000000001100000011000000110000001100000011000011111100001100000011000000110011001100011110000111111011000011110000001100000011111110110000111100001111000011011111100000000000000000000000000000000000000000000000001100001111000011110000111100001111000011110000110111111100000011000000110000001100000011000000000000000000011000000110000001100000011000000110000001100000011000000000000000000000011000000000000001110000110110001100000011000000110000001100000011000000110000001100000000000000000000001100000000000000000000000000000110001100110011000111110000111100011011001100110110001100000011000000110000001100000011000000000000000001111110000110000001100000011000000110000001100000011000000110000001100000011000000111100000000000000000110110111101101111011011110110111101101111011011011111110000000000000000000000000000000000000000000000000110001101100011011000110110001101100011011000110011111100000000000000000000000000000000000000000000000000111110011000110110001101100011011000110110001100111110000000000000000000000000000000000000001100000011000000110111111111000011110000111100001111000011011111110000000000000000000000000000000011000000110000001100000011111110110000111100001111000011110000111111111000000000000000000000000000000000000000000000000000000011000000110000001100000011000000110000011101111111000000000000000000000000000000000000000000000000011111111100000011000000011111100000001100000011111111100000000000000000000000000000000000000000000000000011100001101100000011000000110000001100000011000011111100001100000011000000110000000000000000000000000001111110011000110110001101100011011000110110001101100011000000000000000000000000000000000000000000000000000110000011110000111100011001100110011011000011110000110000000000000000000000000000000000000000000000001100001111100111111111111101101111000011110000111100001100000000000000000000000000000000000000000000000011000011011001100011110000011000001111000110011011000011000000000000000000000000000000000000001100000110000001100000110000011000001111000110011001100110110000110000000000000000000000000000000000000000000000001111111100000110000011000001100000110000011000001111111100000000000000000000000000000000000000000000000011110000000110000001100000011000000111000000111100011100000110000001100000011000111100000001100000011000000110000001100000011000000110000001100000011000000110000001100000011000000110000001100000000000000000000000111100011000000110000001100000111000111100000011100000011000000110000001100000001111";
+
+
 char *GetPixelFontData(size_t *returnArrayLength){
-  *returnArrayLength = strlen("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011000000110000000000000000000000110000001100000011000000110000001100000011000000110000000000000000000000000000000000000000000000000000000000000000000000000000110110001101100011011000110110000000000000000000000000001100110011001101111111101100110011001101111111101100110011001100000000000000000000000000000000000011000011111101111111111011000111110000111111000011111000110111111111101111110000110000000000000000000011100001101100011011011011101100000110000011000001100000110111011011011000110110000111000000000000000001111111001100011111100110001101100001110000011100001101100110011001100110011011000011100000000000000000000000000000000000000000000000000000000000000000000000000000110000011100000110000011100000000000000000000001100000001100000001100000011000000110000001100000011000000110000001100000110000011000000000000000000000000110000011000001100000011000000110000001100000011000000110000001100000001100000001100000000000000000000000000000000001001100101011010001111001111111100111100010110101001100100000000000000000000000000000000000000000001100000011000000110001111111111111111000110000001100000011000000000000000000000000000000000000000110000011000001110000011100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111111111111111100000000000000000000000000000000000000000000000000000000000000000001110000011100000000000000000000000000000000000000000000000000000000000000000000000000000001100000011000001100000011000001100000011000001100000011000001100000011000001100000011000000000000000000000000111100011001101100001111000111110011111101101111110011111000111100001101100110001111000000000000000000011111100001100000011000000110000001100000011000000110000001100000011110000111000001100000000000000000001111111100000011000000110000011000001100000110000011000001100000110000001110011101111110000000000000000001111110111001111100000011000000111000000111111011100000110000001100000011100111011111100000000000000000001100000011000000110000001100000011000011111111001100110011011000111100001110000011000000000000000000000111111011100111110000001100000011100000011111110000001100000011000000110000001111111111000000000000000001111110111001111100001111000011111000110111111100000011000000110000001111100111011111100000000000000000000011000000110000001100000011000001100000110000011000001100000011000000110000001111111100000000000000000111111011100111110000111100001111100111011111101110011111000011110000111110011101111110000000000000000001111110111001111100000011000000110000001111111011100111110000111100001111100111011111100000000000000000000000000001110000011100000000000000000000011100000111000000000000000000000000000000000000000000000000000000110000011000001110000011100000000000000000000011100000111000000000000000000000000000000000000000000001100000001100000001100000001100000001100000001100000110000011000001100000110000011000000000000000000000000000000000000011111111111111110000000011111111111111110000000000000000000000000000000000000000000000000000011000001100000110000011000001100000110000000110000000110000000110000000110000000110000000000000000000011000000000000000000000011000000110000011000001100000110000001100001111000011011111100000000000000000111111000000011011110011110110111100101110111011110000110111111000000000000000000000000000000000000000001100001111000011110000111100001111111111110000111100001111000011011001100011110000011000000000000000000001111111111000111100001111000011111000110111111111100011110000111100001111100011011111110000000000000000011111101110011100000011000000110000001100000011000000110000001100000011111001110111111000000000000000000011111101110011111000111100001111000011110000111100001111000011111000110111001100111111000000000000000011111111000000110000001100000011000000110011111100000011000000110000001100000011111111110000000000000000000000110000001100000011000000110000001100000011001111110000001100000011000000111111111100000000000000000111111011100111110000111100001111110011000000110000001100000011000000111110011101111110000000000000000011000011110000111100001111000011110000111111111111000011110000111100001111000011110000110000000000000000011111100001100000011000000110000001100000011000000110000001100000011000000110000111111000000000000000000011111001110111011000110110000001100000011000000110000001100000011000000110000001100000000000000000000011000011011000110011001100011011000011110000011100001111000110110011001101100011110000110000000000000000111111110000001100000011000000110000001100000011000000110000001100000011000000110000001100000000000000001100001111000011110000111100001111000011110000111101101111111111111111111110011111000011000000000000000011100011111000111111001111110011111110111101101111011111110011111100111111000111110001110000000000000000011111101110011111000011110000111100001111000011110000111100001111000011111001110111111000000000000000000000001100000011000000110000001100000011011111111110001111000011110000111110001101111111000000000000000011111100011101101111101111011011110000111100001111000011110000111100001101100110001111000000000000000000110000110110001100110011000110110000111101111111111000111100001111000011111000110111111100000000000000000111111011100111110000001100000011100000011111100000011100000011000000111110011101111110000000000000000000011000000110000001100000011000000110000001100000011000000110000001100000011000111111110000000000000000011111101110011111000011110000111100001111000011110000111100001111000011110000111100001100000000000000000001100000111100001111000110011001100110110000111100001111000011110000111100001111000011000000000000000011000011111001111111111111111111110110111101101111000011110000111100001111000011110000110000000000000000110000110110011001100110001111000011110000011000001111000011110001100110011001101100001100000000000000000001100000011000000110000001100000011000000110000011110000111100011001100110011011000011000000000000000011111111000000110000001100000110000011000111111000110000011000001100000011000000111111110000000000000000001111000000110000001100000011000000110000001100000011000000110000001100000011000011110000000000110000001100000001100000011000000011000000110000000110000001100000001100000011000000011000000110000000000000000000111100001100000011000000110000001100000011000000110000001100000011000000110000001111000000000000000000000000000000000000000000000000000000000000000000000000001100001101100110001111000001100011111111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000110000001110000001100000011100000000000000000111111101100001111000011111111101100000011000011011111100000000000000000000000000000000000000000000000000111111111000011110000111100001111000011011111110000001100000011000000110000001100000011000000000000000001111110110000110000001100000011000000111100001101111110000000000000000000000000000000000000000000000000111111101100001111000011110000111100001111111110110000001100000011000000110000001100000000000000000000001111111000000011000000110111111111000011110000110111111000000000000000000000000000000000000000000000000000001100000011000000110000001100000011000011111100001100000011000000110011001100011110000111111011000011110000001100000011111110110000111100001111000011011111100000000000000000000000000000000000000000000000001100001111000011110000111100001111000011110000110111111100000011000000110000001100000011000000000000000000011000000110000001100000011000000110000001100000011000000000000000000000011000000000000001110000110110001100000011000000110000001100000011000000110000001100000000000000000000001100000000000000000000000000000110001100110011000111110000111100011011001100110110001100000011000000110000001100000011000000000000000001111110000110000001100000011000000110000001100000011000000110000001100000011000000111100000000000000000110110111101101111011011110110111101101111011011011111110000000000000000000000000000000000000000000000000110001101100011011000110110001101100011011000110011111100000000000000000000000000000000000000000000000000111110011000110110001101100011011000110110001100111110000000000000000000000000000000000000001100000011000000110111111111000011110000111100001111000011011111110000000000000000000000000000000011000000110000001100000011111110110000111100001111000011110000111111111000000000000000000000000000000000000000000000000000000011000000110000001100000011000000110000011101111111000000000000000000000000000000000000000000000000011111111100000011000000011111100000001100000011111111100000000000000000000000000000000000000000000000000011100001101100000011000000110000001100000011000011111100001100000011000000110000000000000000000000000001111110011000110110001101100011011000110110001101100011000000000000000000000000000000000000000000000000000110000011110000111100011001100110011011000011110000110000000000000000000000000000000000000000000000001100001111100111111111111101101111000011110000111100001100000000000000000000000000000000000000000000000011000011011001100011110000011000001111000110011011000011000000000000000000000000000000000000001100000110000001100000110000011000001111000110011001100110110000110000000000000000000000000000000000000000000000001111111100000110000011000001100000110000011000001111111100000000000000000000000000000000000000000000000011110000000110000001100000011000000111000000111100011100000110000001100000011000111100000001100000011000000110000001100000011000000110000001100000011000000110000001100000011000000110000001100000000000000000000000111100011000000110000001100000111000111100000011100000011000000110000001100000001111");
-  return "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011000000110000000000000000000000110000001100000011000000110000001100000011000000110000000000000000000000000000000000000000000000000000000000000000000000000000110110001101100011011000110110000000000000000000000000001100110011001101111111101100110011001101111111101100110011001100000000000000000000000000000000000011000011111101111111111011000111110000111111000011111000110111111111101111110000110000000000000000000011100001101100011011011011101100000110000011000001100000110111011011011000110110000111000000000000000001111111001100011111100110001101100001110000011100001101100110011001100110011011000011100000000000000000000000000000000000000000000000000000000000000000000000000000110000011100000110000011100000000000000000000001100000001100000001100000011000000110000001100000011000000110000001100000110000011000000000000000000000000110000011000001100000011000000110000001100000011000000110000001100000001100000001100000000000000000000000000000000001001100101011010001111001111111100111100010110101001100100000000000000000000000000000000000000000001100000011000000110001111111111111111000110000001100000011000000000000000000000000000000000000000110000011000001110000011100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000111111111111111100000000000000000000000000000000000000000000000000000000000000000001110000011100000000000000000000000000000000000000000000000000000000000000000000000000000001100000011000001100000011000001100000011000001100000011000001100000011000001100000011000000000000000000000000111100011001101100001111000111110011111101101111110011111000111100001101100110001111000000000000000000011111100001100000011000000110000001100000011000000110000001100000011110000111000001100000000000000000001111111100000011000000110000011000001100000110000011000001100000110000001110011101111110000000000000000001111110111001111100000011000000111000000111111011100000110000001100000011100111011111100000000000000000001100000011000000110000001100000011000011111111001100110011011000111100001110000011000000000000000000000111111011100111110000001100000011100000011111110000001100000011000000110000001111111111000000000000000001111110111001111100001111000011111000110111111100000011000000110000001111100111011111100000000000000000000011000000110000001100000011000001100000110000011000001100000011000000110000001111111100000000000000000111111011100111110000111100001111100111011111101110011111000011110000111110011101111110000000000000000001111110111001111100000011000000110000001111111011100111110000111100001111100111011111100000000000000000000000000001110000011100000000000000000000011100000111000000000000000000000000000000000000000000000000000000110000011000001110000011100000000000000000000011100000111000000000000000000000000000000000000000000001100000001100000001100000001100000001100000001100000110000011000001100000110000011000000000000000000000000000000000000011111111111111110000000011111111111111110000000000000000000000000000000000000000000000000000011000001100000110000011000001100000110000000110000000110000000110000000110000000110000000000000000000011000000000000000000000011000000110000011000001100000110000001100001111000011011111100000000000000000111111000000011011110011110110111100101110111011110000110111111000000000000000000000000000000000000000001100001111000011110000111100001111111111110000111100001111000011011001100011110000011000000000000000000001111111111000111100001111000011111000110111111111100011110000111100001111100011011111110000000000000000011111101110011100000011000000110000001100000011000000110000001100000011111001110111111000000000000000000011111101110011111000111100001111000011110000111100001111000011111000110111001100111111000000000000000011111111000000110000001100000011000000110011111100000011000000110000001100000011111111110000000000000000000000110000001100000011000000110000001100000011001111110000001100000011000000111111111100000000000000000111111011100111110000111100001111110011000000110000001100000011000000111110011101111110000000000000000011000011110000111100001111000011110000111111111111000011110000111100001111000011110000110000000000000000011111100001100000011000000110000001100000011000000110000001100000011000000110000111111000000000000000000011111001110111011000110110000001100000011000000110000001100000011000000110000001100000000000000000000011000011011000110011001100011011000011110000011100001111000110110011001101100011110000110000000000000000111111110000001100000011000000110000001100000011000000110000001100000011000000110000001100000000000000001100001111000011110000111100001111000011110000111101101111111111111111111110011111000011000000000000000011100011111000111111001111110011111110111101101111011111110011111100111111000111110001110000000000000000011111101110011111000011110000111100001111000011110000111100001111000011111001110111111000000000000000000000001100000011000000110000001100000011011111111110001111000011110000111110001101111111000000000000000011111100011101101111101111011011110000111100001111000011110000111100001101100110001111000000000000000000110000110110001100110011000110110000111101111111111000111100001111000011111000110111111100000000000000000111111011100111110000001100000011100000011111100000011100000011000000111110011101111110000000000000000000011000000110000001100000011000000110000001100000011000000110000001100000011000111111110000000000000000011111101110011111000011110000111100001111000011110000111100001111000011110000111100001100000000000000000001100000111100001111000110011001100110110000111100001111000011110000111100001111000011000000000000000011000011111001111111111111111111110110111101101111000011110000111100001111000011110000110000000000000000110000110110011001100110001111000011110000011000001111000011110001100110011001101100001100000000000000000001100000011000000110000001100000011000000110000011110000111100011001100110011011000011000000000000000011111111000000110000001100000110000011000111111000110000011000001100000011000000111111110000000000000000001111000000110000001100000011000000110000001100000011000000110000001100000011000011110000000000110000001100000001100000011000000011000000110000000110000001100000001100000011000000011000000110000000000000000000111100001100000011000000110000001100000011000000110000001100000011000000110000001111000000000000000000000000000000000000000000000000000000000000000000000000001100001101100110001111000001100011111111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000110000001110000001100000011100000000000000000111111101100001111000011111111101100000011000011011111100000000000000000000000000000000000000000000000000111111111000011110000111100001111000011011111110000001100000011000000110000001100000011000000000000000001111110110000110000001100000011000000111100001101111110000000000000000000000000000000000000000000000000111111101100001111000011110000111100001111111110110000001100000011000000110000001100000000000000000000001111111000000011000000110111111111000011110000110111111000000000000000000000000000000000000000000000000000001100000011000000110000001100000011000011111100001100000011000000110011001100011110000111111011000011110000001100000011111110110000111100001111000011011111100000000000000000000000000000000000000000000000001100001111000011110000111100001111000011110000110111111100000011000000110000001100000011000000000000000000011000000110000001100000011000000110000001100000011000000000000000000000011000000000000001110000110110001100000011000000110000001100000011000000110000001100000000000000000000001100000000000000000000000000000110001100110011000111110000111100011011001100110110001100000011000000110000001100000011000000000000000001111110000110000001100000011000000110000001100000011000000110000001100000011000000111100000000000000000110110111101101111011011110110111101101111011011011111110000000000000000000000000000000000000000000000000110001101100011011000110110001101100011011000110011111100000000000000000000000000000000000000000000000000111110011000110110001101100011011000110110001100111110000000000000000000000000000000000000001100000011000000110111111111000011110000111100001111000011011111110000000000000000000000000000000011000000110000001100000011111110110000111100001111000011110000111111111000000000000000000000000000000000000000000000000000000011000000110000001100000011000000110000011101111111000000000000000000000000000000000000000000000000011111111100000011000000011111100000001100000011111111100000000000000000000000000000000000000000000000000011100001101100000011000000110000001100000011000011111100001100000011000000110000000000000000000000000001111110011000110110001101100011011000110110001101100011000000000000000000000000000000000000000000000000000110000011110000111100011001100110011011000011110000110000000000000000000000000000000000000000000000001100001111100111111111111101101111000011110000111100001100000000000000000000000000000000000000000000000011000011011001100011110000011000001111000110011011000011000000000000000000000000000000000000001100000110000001100000110000011000001111000110011001100110110000110000000000000000000000000000000000000000000000001111111100000110000011000001100000110000011000001111111100000000000000000000000000000000000000000000000011110000000110000001100000011000000111000000111100011100000110000001100000011000111100000001100000011000000110000001100000011000000110000001100000011000000110000001100000011000000110000001100000000000000000000000111100011000000110000001100000111000111100000011100000011000000110000001100000001111";
+    *returnArrayLength = sizeof(pixel_array)/sizeof(*pixel_array);
+    return pixel_array;
 }
+
+
 void DrawAsciiCharacter(RGBABitmapImage *image, double topx, double topy, char a, RGBA *color){
   double index, x, y, pixel, basis, ybasis;
   char *allCharData;
@@ -4534,7 +3605,7 @@ void DrawAsciiCharacter(RGBABitmapImage *image, double topx, double topy, char a
   index = index - 32.0;
   allCharData = GetPixelFontData(&allCharDataLength);
 
-  basis = index*8.0*13.0;
+  basis = index * 8.0 * 13.0;
 
   for(y = 0.0; y < 13.0; y = y + 1.0){
     ybasis = basis + y*8.0;
@@ -4546,7 +3617,9 @@ void DrawAsciiCharacter(RGBABitmapImage *image, double topx, double topy, char a
     }
   }
 }
-double GetTextWidth(char *text, size_t textLength){
+
+
+double GetTextWidth(size_t textLength){
   double charWidth, spacing, width;
 
   charWidth = 8.0;
@@ -4554,22 +3627,24 @@ double GetTextWidth(char *text, size_t textLength){
 
   if((double)textLength == 0.0){
     width = 0.0;
-  }else{
+  } else {
     width = (double)textLength*charWidth + ((double)textLength - 1.0)*spacing;
   }
 
   return width;
 }
-double GetTextHeight(char *text, size_t textLength){
-  return 13.0;
-}
+
 
 ByteArray *ConvertToPNG(RGBABitmapImage *image){
   return ConvertToPNGWithOptions(image, 6.0, false, 0.0, 0.001);
 }
+
+
 ByteArray *ConvertToPNGGrayscale(RGBABitmapImage *image){
   return ConvertToPNGWithOptions(image, 0.0, false, 0.0, 0.001);
 }
+
+
 PHYS *PysicsHeader(double pixelsPerMeter){
   PHYS *phys;
 
@@ -4579,6 +3654,8 @@ PHYS *PysicsHeader(double pixelsPerMeter){
 
   return phys;
 }
+
+
 ByteArray *ConvertToPNGWithOptions(RGBABitmapImage *image, double colorType, bool setPhys, double pixelsPerMeter, double compressionLevel){
   PNGImage *png;
   ByteArray *pngData, *colorData;
@@ -4603,6 +3680,8 @@ ByteArray *ConvertToPNGWithOptions(RGBABitmapImage *image, double colorType, boo
 
   return pngData;
 }
+
+
 ByteArray *PNGSerializeChunks(PNGImage *png){
   double length, i, chunkLength;
   ByteArray *data;
@@ -4666,12 +3745,18 @@ ByteArray *PNGSerializeChunks(PNGImage *png){
 
   return data;
 }
+
+
 double PNGIDATLength(PNGImage *png){
   return 2.0 + ByteArrayLength(png->zlibStruct->CompressedDataBlocks) + 4.0;
 }
+
+
 double PNGHeaderLength(){
   return 4.0 + 4.0 + 1.0 + 1.0 + 1.0 + 1.0 + 1.0;
 }
+
+
 ByteArray *GetPNGColorData(RGBABitmapImage *image){
   ByteArray *colordata;
   size_t pixel;
@@ -4704,6 +3789,8 @@ ByteArray *GetPNGColorData(RGBABitmapImage *image){
 
   return colordata;
 }
+
+
 ByteArray *GetPNGColorDataGreyscale(RGBABitmapImage *image){
   ByteArray *colordata;
   double length, x, y, next;
@@ -4730,6 +3817,8 @@ ByteArray *GetPNGColorDataGreyscale(RGBABitmapImage *image){
 
   return colordata;
 }
+
+
 IHDR *PNGHeader(RGBABitmapImage *image, double colortype){
   IHDR *ihdr;
 
@@ -4747,6 +3836,8 @@ IHDR *PNGHeader(RGBABitmapImage *image, double colortype){
   /* no interlace */
   return ihdr;
 }
+
+
 double *PNGSignature(size_t *returnArrayLength){
   double *s;
   size_t sLength;
@@ -4765,6 +3856,8 @@ double *PNGSignature(size_t *returnArrayLength){
   *returnArrayLength = sLength;
   return s;
 }
+
+
 double *PNGReadDataChunks(size_t *returnArrayLength, Chunk **cs, size_t csLength){
   double i, j, length, zlibpos;
   Chunk *c;
@@ -4774,7 +3867,7 @@ double *PNGReadDataChunks(size_t *returnArrayLength, Chunk **cs, size_t csLength
   length = 0.0;
   for(i = 0.0; i < (double)csLength; i = i + 1.0){
     c = cs[(int)(i)];
-    if(aStringsEqual(c->type, c->typeLength, strparam("IDAT"))){
+    if(strncmp(c->type, "IDAT", c->typeLength) == 0){
       length = length + c->length;
     }
   }
@@ -4785,7 +3878,7 @@ double *PNGReadDataChunks(size_t *returnArrayLength, Chunk **cs, size_t csLength
 
   for(i = 0.0; i < (double)csLength; i = i + 1.0){
     c = cs[(int)(i)];
-    if(aStringsEqual(c->type, c->typeLength, strparam("IDAT"))){
+    if(strncmp(c->type,"IDAT", c->typeLength) == 0){
       for(j = 0.0; j < c->length; j = j + 1.0){
         zlibData[(int)(zlibpos)] = GetByte(c->data, j);
         zlibpos = zlibpos + 1.0;
@@ -4796,6 +3889,8 @@ double *PNGReadDataChunks(size_t *returnArrayLength, Chunk **cs, size_t csLength
   *returnArrayLength = zlibDataLength;
   return zlibData;
 }
+
+
 bool PNGReadHeader(RGBABitmapImage *image, Chunk **cs, size_t csLength, StringReference *errorMessages){
   double i;
   IHDR *ihdr;
@@ -4809,7 +3904,7 @@ bool PNGReadHeader(RGBABitmapImage *image, Chunk **cs, size_t csLength, StringRe
 
   for(i = 0.0; i < (double)csLength; i = i + 1.0){
     c = cs[(int)(i)];
-    if(aStringsEqual(c->type, c->typeLength, strparam("IHDR"))){
+    if(strncmp(c->type, "IHDR", c->typeLength) == 0){
       ihdr = (IHDR *)calloc(sizeof(IHDR), 1);
 
       ihdr->Width = Read4bytesBE(c->data, position);
@@ -4856,6 +3951,8 @@ bool PNGReadHeader(RGBABitmapImage *image, Chunk **cs, size_t csLength, StringRe
 
   return success;
 }
+
+
 Chunk **PNGReadChunks(size_t *returnArrayLength, ByteArray *data, NumberReference *position){
   bool done;
   double prepos;
@@ -4868,7 +3965,7 @@ Chunk **PNGReadChunks(size_t *returnArrayLength, ByteArray *data, NumberReferenc
   prepos = position->numberValue;
   for(chunks = 0.0;  !done ; chunks = chunks + 1.0){
     c = PNGReadChunk(data, position);
-    if(aStringsEqual(c->type, c->typeLength, strparam("IEND"))){
+    if(strncmp(c->type, "IEND", c->typeLength) == 0){
       done = true;
     }
   }
@@ -4882,6 +3979,8 @@ Chunk **PNGReadChunks(size_t *returnArrayLength, ByteArray *data, NumberReferenc
   *returnArrayLength = csLength;
   return cs;
 }
+
+
 Chunk *PNGReadChunk(ByteArray *data, NumberReference *position){
   Chunk *c;
 
@@ -4899,38 +3998,32 @@ Chunk *PNGReadChunk(ByteArray *data, NumberReference *position){
 
   return c;
 }
-void WriteStringToStingStream(char *stream, size_t streamLength, NumberReference *index, char *src, size_t srcLength){
-  double i;
 
-  for(i = 0.0; i < (double)srcLength; i = i + 1.0){
-    stream[(int)(index->numberValue + i)] = src[(int)(i)];
-  }
+
+void WriteStringToStingStream(char *stream, NumberReference *index, char *src, size_t srcLength){
+  for(size_t i = 0; i < srcLength; i++)
+    stream[(size_t) index->numberValue + i] = src[i];
+
   index->numberValue = index->numberValue + (double)srcLength;
 }
-void WriteCharacterToStingStream(char *stream, size_t streamLength, NumberReference *index, char src){
+
+
+void WriteCharacterToStingStream(char *stream, NumberReference *index, char src){
   stream[(int)(index->numberValue)] = src;
   index->numberValue = index->numberValue + 1.0;
 }
-void WriteBooleanToStingStream(char *stream, size_t streamLength, NumberReference *index, bool src){
+
+
+void WriteBooleanToStingStream(char *stream, NumberReference *index, bool src){
   if(src){
-    WriteStringToStingStream(stream, streamLength, index, strparam("true"));
+    WriteStringToStingStream(stream, index, strparam("true"));
   }else{
-    WriteStringToStingStream(stream, streamLength, index, strparam("false"));
+    WriteStringToStingStream(stream, index, strparam("false"));
   }
 }
-bool SubstringWithCheck(char *string, size_t stringLength, double from, double to, StringReference *stringReference){
-  bool success;
 
-  if(from >= 0.0 && from <= (double)stringLength && to >= 0.0 && to <= (double)stringLength && from <= to){
-    stringReference->string = Substring(&stringReference->stringLength, string, stringLength, from, to);
-    success = true;
-  }else{
-    success = false;
-  }
 
-  return success;
-}
-char *Substring(size_t *returnArrayLength, char *string, size_t stringLength, double from, double to){
+static char * Substring(size_t *returnArrayLength, char *string, double from, double to){
   char *n;
   size_t nLength;
   double i, length;
@@ -4947,6 +4040,22 @@ char *Substring(size_t *returnArrayLength, char *string, size_t stringLength, do
   *returnArrayLength = nLength;
   return n;
 }
+
+
+bool SubstringWithCheck(char *string, size_t stringLength, double from, double to, StringReference *stringReference){
+  bool success;
+
+  if(from >= 0.0 && from <= (double)stringLength && to >= 0.0 && to <= (double)stringLength && from <= to){
+    stringReference->string = Substring(&stringReference->stringLength, string, from, to);
+    success = true;
+  }else{
+    success = false;
+  }
+
+  return success;
+}
+
+
 char *AppendString(size_t *returnArrayLength, char *s1, size_t s1Length, char *s2, size_t s2Length){
   char *newString;
   size_t newStringLength;
@@ -4958,6 +4067,8 @@ char *AppendString(size_t *returnArrayLength, char *s1, size_t s1Length, char *s
   *returnArrayLength = newStringLength;
   return newString;
 }
+
+
 char *ConcatenateString(size_t *returnArrayLength, char *s1, size_t s1Length, char *s2, size_t s2Length){
   char *newString;
   size_t newStringLength;
@@ -4977,6 +4088,8 @@ char *ConcatenateString(size_t *returnArrayLength, char *s1, size_t s1Length, ch
   *returnArrayLength = newStringLength;
   return newString;
 }
+
+
 char *AppendCharacter(size_t *returnArrayLength, char *string, size_t stringLength, char c){
   char *newString;
   size_t newStringLength;
@@ -4988,6 +4101,8 @@ char *AppendCharacter(size_t *returnArrayLength, char *string, size_t stringLeng
   *returnArrayLength = newStringLength;
   return newString;
 }
+
+
 char *ConcatenateCharacter(size_t *returnArrayLength, char *string, size_t stringLength, char c){
   char *newString;
   size_t newStringLength;
@@ -5004,37 +4119,8 @@ char *ConcatenateCharacter(size_t *returnArrayLength, char *string, size_t strin
   *returnArrayLength = newStringLength;
   return newString;
 }
-StringReference **SplitByCharacter(size_t *returnArrayLength, char *toSplit, size_t toSplitLength, char splitBy){
-  StringReference **split;
-  size_t splitLength;
-  char *stringToSplitBy;
-  size_t stringToSplitByLength;
 
-  stringToSplitBy = (char*)calloc(sizeof(char) * (1.0), 1);
-  stringToSplitByLength = 1.0;
-  stringToSplitBy[0] = splitBy;
 
-  split = SplitByString(&splitLength, toSplit, toSplitLength, stringToSplitBy, stringToSplitByLength);
-
-  free(stringToSplitBy);
-
-  *returnArrayLength = splitLength;
-  return split;
-}
-bool IndexOfCharacter(char *string, size_t stringLength, char character, NumberReference *indexReference){
-  double i;
-  bool found;
-
-  found = false;
-  for(i = 0.0; i < (double)stringLength &&  !found ; i = i + 1.0){
-    if(string[(int)(i)] == character){
-      found = true;
-      indexReference->numberValue = i;
-    }
-  }
-
-  return found;
-}
 bool SubstringEqualsWithCheck(char *string, size_t stringLength, double from, char *substring, size_t substringLength, BooleanReference *equalsReference){
   bool success;
 
@@ -5047,6 +4133,8 @@ bool SubstringEqualsWithCheck(char *string, size_t stringLength, double from, ch
 
   return success;
 }
+
+
 bool SubstringEquals(char *string, size_t stringLength, double from, char *substring, size_t substringLength){
   double i;
   bool equal;
@@ -5064,131 +4152,26 @@ bool SubstringEquals(char *string, size_t stringLength, double from, char *subst
 
   return equal;
 }
-bool IndexOfString(char *string, size_t stringLength, char *substring, size_t substringLength, NumberReference *indexReference){
-  double i;
-  bool found;
 
-  found = false;
-  for(i = 0.0; i < (double)stringLength - (double)substringLength + 1.0 &&  !found ; i = i + 1.0){
-    if(SubstringEquals(string, stringLength, i, substring, substringLength)){
-      found = true;
-      indexReference->numberValue = i;
-    }
-  }
 
-  return found;
-}
-bool ContainsCharacter(char *string, size_t stringLength, char character){
-  double i;
-  bool found;
-
-  found = false;
-  for(i = 0.0; i < (double)stringLength &&  !found ; i = i + 1.0){
-    if(string[(int)(i)] == character){
-      found = true;
-    }
-  }
-
-  return found;
-}
-bool ContainsString(char *string, size_t stringLength, char *substring, size_t substringLength){
-  return IndexOfString(string, stringLength, substring, substringLength, (NumberReference *)calloc(sizeof(NumberReference), 1));
-}
 void ToUpperCase(char *string, size_t stringLength){
   double i;
 
   for(i = 0.0; i < (double)stringLength; i = i + 1.0){
-    string[(int)(i)] = charToUpperCase(string[(int)(i)]);
+    string[(int)(i)] = toupper(string[(int)(i)]);
   }
 }
+
+
 void ToLowerCase(char *string, size_t stringLength){
   double i;
 
   for(i = 0.0; i < (double)stringLength; i = i + 1.0){
-    string[(int)(i)] = charToLowerCase(string[(int)(i)]);
+    string[(int)(i)] = tolower(string[(int)(i)]);
   }
 }
-bool EqualsIgnoreCase(char *a, size_t aLength, char *b, size_t bLength){
-  bool equal;
-  double i;
 
-  if((double)aLength == (double)bLength){
-    equal = true;
-    for(i = 0.0; i < (double)aLength && equal; i = i + 1.0){
-      if(charToLowerCase(a[(int)(i)]) != charToLowerCase(b[(int)(i)])){
-        equal = false;
-      }
-    }
-  }else{
-    equal = false;
-  }
 
-  return equal;
-}
-char *ReplaceString(size_t *returnArrayLength, char *string, size_t stringLength, char *toReplace, size_t toReplaceLength, char *replaceWith, size_t replaceWithLength){
-  char *result;
-  size_t resultLength;
-  double i, j;
-  BooleanReference *equalsReference;
-  bool success;
-  DynamicArrayCharacters *da;
-
-  da = CreateDynamicArrayCharacters();
-
-  equalsReference = (BooleanReference *)calloc(sizeof(BooleanReference), 1);
-
-  for(i = 0.0; i < (double)stringLength; ){
-    success = SubstringEqualsWithCheck(string, stringLength, i, toReplace, toReplaceLength, equalsReference);
-    if(success){
-      success = equalsReference->booleanValue;
-    }
-
-    if(success && (double)toReplaceLength > 0.0){
-      for(j = 0.0; j < (double)replaceWithLength; j = j + 1.0){
-        DynamicArrayAddCharacter(da, replaceWith[(int)(j)]);
-      }
-      i = i + (double)toReplaceLength;
-    }else{
-      DynamicArrayAddCharacter(da, string[(int)(i)]);
-      i = i + 1.0;
-    }
-  }
-
-  result = DynamicArrayCharactersToArray(&resultLength, da);
-
-  FreeDynamicArrayCharacters(da);
-
-  *returnArrayLength = resultLength;
-  return result;
-}
-char *ReplaceCharacterToNew(size_t *returnArrayLength, char *string, size_t stringLength, char toReplace, char replaceWith){
-  char *result;
-  size_t resultLength;
-  double i;
-
-  result = (char*)calloc(sizeof(char) * ((double)stringLength), 1);
-  resultLength = (double)stringLength;
-
-  for(i = 0.0; i < (double)stringLength; i = i + 1.0){
-    if(string[(int)(i)] == toReplace){
-      result[(int)(i)] = replaceWith;
-    }else{
-      result[(int)(i)] = string[(int)(i)];
-    }
-  }
-
-  *returnArrayLength = resultLength;
-  return result;
-}
-void ReplaceCharacter(char *string, size_t stringLength, char toReplace, char replaceWith){
-  double i;
-
-  for(i = 0.0; i < (double)stringLength; i = i + 1.0){
-    if(string[(int)(i)] == toReplace){
-      string[(int)(i)] = replaceWith;
-    }
-  }
-}
 char *Trim(size_t *returnArrayLength, char *string, size_t stringLength){
   char *result;
   size_t resultLength;
@@ -5199,7 +4182,7 @@ char *Trim(size_t *returnArrayLength, char *string, size_t stringLength){
   lastWhitespaceLocationStart =  -1.0;
   firstNonWhitespaceFound = false;
   for(i = 0.0; i < (double)stringLength &&  !firstNonWhitespaceFound ; i = i + 1.0){
-    if(charIsWhiteSpace(string[(int)(i)])){
+    if(isspace((int) string[(int)(i)])){
       lastWhitespaceLocationStart = i;
     }else{
       firstNonWhitespaceFound = true;
@@ -5210,7 +4193,7 @@ char *Trim(size_t *returnArrayLength, char *string, size_t stringLength){
   lastWhitespaceLocationEnd = (double)stringLength;
   firstNonWhitespaceFound = false;
   for(i = (double)stringLength - 1.0; i >= 0.0 &&  !firstNonWhitespaceFound ; i = i - 1.0){
-    if(charIsWhiteSpace(string[(int)(i)])){
+    if(isspace((int) string[(int)(i)])){
       lastWhitespaceLocationEnd = i;
     }else{
       firstNonWhitespaceFound = true;
@@ -5218,7 +4201,7 @@ char *Trim(size_t *returnArrayLength, char *string, size_t stringLength){
   }
 
   if(lastWhitespaceLocationStart < lastWhitespaceLocationEnd){
-    result = Substring(&resultLength, string, stringLength, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd);
+    result = Substring(&resultLength, string, lastWhitespaceLocationStart + 1.0, lastWhitespaceLocationEnd);
   }else{
     result = (char*)calloc(sizeof(char) * (0.0), 1);
     resultLength = 0.0;
@@ -5227,26 +4210,8 @@ char *Trim(size_t *returnArrayLength, char *string, size_t stringLength){
   *returnArrayLength = resultLength;
   return result;
 }
-bool StartsWith(char *string, size_t stringLength, char *start, size_t startLength){
-  bool startsWithString;
 
-  startsWithString = false;
-  if((double)stringLength >= (double)startLength){
-    startsWithString = SubstringEquals(string, stringLength, 0.0, start, startLength);
-  }
 
-  return startsWithString;
-}
-bool EndsWith(char *string, size_t stringLength, char *end, size_t endLength){
-  bool endsWithString;
-
-  endsWithString = false;
-  if((double)stringLength >= (double)endLength){
-    endsWithString = SubstringEquals(string, stringLength, (double)stringLength - (double)endLength, end, endLength);
-  }
-
-  return endsWithString;
-}
 StringReference **SplitByString(size_t *returnArrayLength, char *toSplit, size_t toSplitLength, char *splitBy, size_t splitByLength){
   StringReference **split;
   size_t splitLength;
@@ -5286,6 +4251,18 @@ StringReference **SplitByString(size_t *returnArrayLength, char *toSplit, size_t
   *returnArrayLength = splitLength;
   return split;
 }
+
+
+bool charCharacterIsBefore(char a, char b){
+  double ad, bd;
+
+  ad = a;
+  bd = b;
+
+  return ad < bd;
+}
+
+
 bool StringIsBefore(char *a, size_t aLength, char *b, size_t bLength){
   bool before, equal, done;
   double i;
@@ -5318,58 +4295,8 @@ bool StringIsBefore(char *a, size_t aLength, char *b, size_t bLength){
 
   return before;
 }
-double *AddNumber(size_t *returnArrayLength, double *list, size_t listLength, double a){
-  double *newlist;
-  size_t newlistLength;
-  double i;
 
-  newlist = (double*)calloc(sizeof(double) * ((double)listLength + 1.0), 1);
-  newlistLength = (double)listLength + 1.0;
-  for(i = 0.0; i < (double)listLength; i = i + 1.0){
-    newlist[(int)(i)] = list[(int)(i)];
-  }
-  newlist[(int)((double)listLength)] = a;
-		
-  free(list);
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-void AddNumberRef(NumberArrayReference *list, double i){
-  list->numberArray = AddNumber(&list->numberArrayLength, list->numberArray, list->numberArrayLength, i);
-}
-double *RemoveNumber(size_t *returnArrayLength, double *list, size_t listLength, double n){
-  double *newlist;
-  size_t newlistLength;
-  double i;
 
-  newlist = (double*)calloc(sizeof(double) * ((double)listLength - 1.0), 1);
-  newlistLength = (double)listLength - 1.0;
-
-  if(n >= 0.0 && n < (double)listLength){
-    for(i = 0.0; i < (double)listLength; i = i + 1.0){
-      if(i < n){
-        newlist[(int)(i)] = list[(int)(i)];
-      }
-      if(i > n){
-        newlist[(int)(i - 1.0)] = list[(int)(i)];
-      }
-    }
-
-    free(list);
-  }else{
-    free(newlist);
-  }
-		
-  *returnArrayLength = newlistLength;
-  return newlist;
-}
-double GetNumberRef(NumberArrayReference *list, double i){
-  return list->numberArray[(int)(i)];
-}
-void RemoveNumberRef(NumberArrayReference *list, double i){
-  list->numberArray = RemoveNumber(&list->numberArrayLength, list->numberArray, list->numberArrayLength, i);
-}
 StringReference **AddString(size_t *returnArrayLength, StringReference **list, size_t listLength, StringReference *a){
   StringReference **newlist;
   size_t newlistLength;
@@ -5388,9 +4315,13 @@ StringReference **AddString(size_t *returnArrayLength, StringReference **list, s
   *returnArrayLength = newlistLength;
   return newlist;
 }
+
+
 void AddStringRef(StringArrayReference *list, StringReference *i){
   list->stringArray = AddString(&list->stringArrayLength, list->stringArray, list->stringArrayLength, i);
 }
+
+
 StringReference **RemoveString(size_t *returnArrayLength, StringReference **list, size_t listLength, double n){
   StringReference **newlist;
   size_t newlistLength;
@@ -5417,12 +4348,18 @@ StringReference **RemoveString(size_t *returnArrayLength, StringReference **list
   *returnArrayLength = newlistLength;
   return newlist;
 }
+
+
 StringReference *GetStringRef(StringArrayReference *list, double i){
   return list->stringArray[(int)(i)];
 }
+
+
 void RemoveStringRef(StringArrayReference *list, double i){
   list->stringArray = RemoveString(&list->stringArrayLength, list->stringArray, list->stringArrayLength, i);
 }
+
+
 DynamicArrayCharacters *CreateDynamicArrayCharacters(){
   DynamicArrayCharacters *da;
 
@@ -5433,6 +4370,8 @@ DynamicArrayCharacters *CreateDynamicArrayCharacters(){
 
   return da;
 }
+
+
 DynamicArrayCharacters *CreateDynamicArrayCharactersWithInitialCapacity(double capacity){
   DynamicArrayCharacters *da;
 
@@ -5443,6 +4382,8 @@ DynamicArrayCharacters *CreateDynamicArrayCharactersWithInitialCapacity(double c
 
   return da;
 }
+
+
 void DynamicArrayAddCharacter(DynamicArrayCharacters *da, char value){
   if(da->length == (double)da->arrayLength){
     DynamicArrayCharactersIncreaseSize(da);
@@ -5451,6 +4392,7 @@ void DynamicArrayAddCharacter(DynamicArrayCharacters *da, char value){
   da->array[(int)(da->length)] = value;
   da->length = da->length + 1.0;
 }
+
 void DynamicArrayCharactersIncreaseSize(DynamicArrayCharacters *da){
   double newLength, i;
   char *newArray;
@@ -5469,6 +4411,8 @@ void DynamicArrayCharactersIncreaseSize(DynamicArrayCharacters *da){
   da->array = newArray;
   da->arrayLength = newArrayLength;
 }
+
+
 bool DynamicArrayCharactersDecreaseSizeNecessary(DynamicArrayCharacters *da){
   bool needsDecrease;
 
@@ -5480,6 +4424,8 @@ bool DynamicArrayCharactersDecreaseSizeNecessary(DynamicArrayCharacters *da){
 
   return needsDecrease;
 }
+
+
 void DynamicArrayCharactersDecreaseSize(DynamicArrayCharacters *da){
   double newLength, i;
   char *newArray;
@@ -5498,12 +4444,18 @@ void DynamicArrayCharactersDecreaseSize(DynamicArrayCharacters *da){
   da->array = newArray;
   da->arrayLength = newArrayLength;
 }
+
+
 double DynamicArrayCharactersIndex(DynamicArrayCharacters *da, double index){
   return da->array[(int)(index)];
 }
+
+
 double DynamicArrayCharactersLength(DynamicArrayCharacters *da){
   return da->length;
 }
+
+
 void DynamicArrayInsertCharacter(DynamicArrayCharacters *da, double index, char value){
   double i;
 
@@ -5519,6 +4471,8 @@ void DynamicArrayInsertCharacter(DynamicArrayCharacters *da, double index, char 
 
   da->length = da->length + 1.0;
 }
+
+
 bool DynamicArrayCharacterSet(DynamicArrayCharacters *da, double index, char value){
   bool success;
 
@@ -5531,6 +4485,8 @@ bool DynamicArrayCharacterSet(DynamicArrayCharacters *da, double index, char val
 
   return success;
 }
+
+
 void DynamicArrayRemoveCharacter(DynamicArrayCharacters *da, double index){
   double i;
 
@@ -5544,10 +4500,14 @@ void DynamicArrayRemoveCharacter(DynamicArrayCharacters *da, double index){
     DynamicArrayCharactersDecreaseSize(da);
   }
 }
+
+
 void FreeDynamicArrayCharacters(DynamicArrayCharacters *da){
   free(da->array);
   free(da);
 }
+
+
 char *DynamicArrayCharactersToArray(size_t *returnArrayLength, DynamicArrayCharacters *da){
   char *array;
   size_t arrayLength;
@@ -5563,6 +4523,8 @@ char *DynamicArrayCharactersToArray(size_t *returnArrayLength, DynamicArrayChara
   *returnArrayLength = arrayLength;
   return array;
 }
+
+
 DynamicArrayCharacters *ArrayToDynamicArrayCharactersWithOptimalSize(char *array, size_t arrayLength){
   DynamicArrayCharacters *da;
   double i;
@@ -5580,6 +4542,8 @@ DynamicArrayCharacters *ArrayToDynamicArrayCharactersWithOptimalSize(char *array
 
   return da;
 }
+
+
 DynamicArrayCharacters *ArrayToDynamicArrayCharacters(char *array, size_t arrayLength){
   DynamicArrayCharacters *da;
 
@@ -5589,6 +4553,8 @@ DynamicArrayCharacters *ArrayToDynamicArrayCharacters(char *array, size_t arrayL
 
   return da;
 }
+
+
 bool DynamicArrayCharactersEqual(DynamicArrayCharacters *a, DynamicArrayCharacters *b){
   bool equal;
   double i;
@@ -5606,6 +4572,8 @@ bool DynamicArrayCharactersEqual(DynamicArrayCharacters *a, DynamicArrayCharacte
 
   return equal;
 }
+
+
 LinkedListCharacters *DynamicArrayCharactersToLinkedList(DynamicArrayCharacters *da){
   LinkedListCharacters *ll;
   double i;
@@ -5618,6 +4586,8 @@ LinkedListCharacters *DynamicArrayCharactersToLinkedList(DynamicArrayCharacters 
 
   return ll;
 }
+
+
 DynamicArrayCharacters *LinkedListToDynamicArrayCharacters(LinkedListCharacters *ll){
   DynamicArrayCharacters *da;
   double i;
@@ -5638,6 +4608,8 @@ DynamicArrayCharacters *LinkedListToDynamicArrayCharacters(LinkedListCharacters 
 
   return da;
 }
+
+
 bool *AddBoolean(size_t *returnArrayLength, bool *list, size_t listLength, bool a){
   bool *newlist;
   size_t newlistLength;
@@ -5655,9 +4627,13 @@ bool *AddBoolean(size_t *returnArrayLength, bool *list, size_t listLength, bool 
   *returnArrayLength = newlistLength;
   return newlist;
 }
+
+
 void AddBooleanRef(BooleanArrayReference *list, bool i){
   list->booleanArray = AddBoolean(&list->booleanArrayLength, list->booleanArray, list->booleanArrayLength, i);
 }
+
+
 bool *RemoveBoolean(size_t *returnArrayLength, bool *list, size_t listLength, double n){
   bool *newlist;
   size_t newlistLength;
@@ -5684,12 +4660,18 @@ bool *RemoveBoolean(size_t *returnArrayLength, bool *list, size_t listLength, do
   *returnArrayLength = newlistLength;
   return newlist;
 }
+
+
 bool GetBooleanRef(BooleanArrayReference *list, double i){
   return list->booleanArray[(int)(i)];
 }
+
+
 void RemoveDecimalRef(BooleanArrayReference *list, double i){
   list->booleanArray = RemoveBoolean(&list->booleanArrayLength, list->booleanArray, list->booleanArrayLength, i);
 }
+
+
 LinkedListStrings *CreateLinkedListString(){
   LinkedListStrings *ll;
 
@@ -5700,6 +4682,8 @@ LinkedListStrings *CreateLinkedListString(){
 
   return ll;
 }
+
+
 void LinkedListAddString(LinkedListStrings *ll, char *value, size_t valueLength){
   ll->last->end = false;
   ll->last->value = value;
@@ -5708,6 +4692,8 @@ void LinkedListAddString(LinkedListStrings *ll, char *value, size_t valueLength)
   ll->last->next->end = true;
   ll->last = ll->last->next;
 }
+
+
 StringReference **LinkedListStringsToArray(size_t *returnArrayLength, LinkedListStrings *ll){
   StringReference **array;
   size_t arrayLength;
@@ -5731,6 +4717,8 @@ StringReference **LinkedListStringsToArray(size_t *returnArrayLength, LinkedList
   *returnArrayLength = arrayLength;
   return array;
 }
+
+
 double LinkedListStringsLength(LinkedListStrings *ll){
   double l;
   LinkedListNodeStrings *node;
@@ -5744,6 +4732,8 @@ double LinkedListStringsLength(LinkedListStrings *ll){
 
   return l;
 }
+
+
 void freeLinkedListString(LinkedListStrings *ll){
   LinkedListNodeStrings *node, *prev;
 
@@ -5757,6 +4747,8 @@ void freeLinkedListString(LinkedListStrings *ll){
 
   free(node);
 }
+
+
 LinkedListNumbers *CreateLinkedListNumbers(){
   LinkedListNumbers *ll;
 
@@ -5767,6 +4759,8 @@ LinkedListNumbers *CreateLinkedListNumbers(){
 
   return ll;
 }
+
+
 LinkedListNumbers **CreateLinkedListNumbersArray(size_t *returnArrayLength, double length){
   LinkedListNumbers **lls;
   size_t llsLength;
@@ -5781,6 +4775,8 @@ LinkedListNumbers **CreateLinkedListNumbersArray(size_t *returnArrayLength, doub
   *returnArrayLength = llsLength;
   return lls;
 }
+
+
 void LinkedListAddNumber(LinkedListNumbers *ll, double value){
   ll->last->end = false;
   ll->last->value = value;
@@ -5788,6 +4784,8 @@ void LinkedListAddNumber(LinkedListNumbers *ll, double value){
   ll->last->next->end = true;
   ll->last = ll->last->next;
 }
+
+
 double LinkedListNumbersLength(LinkedListNumbers *ll){
   double l;
   LinkedListNodeNumbers *node;
@@ -5801,6 +4799,8 @@ double LinkedListNumbersLength(LinkedListNumbers *ll){
 
   return l;
 }
+
+
 double LinkedListNumbersIndex(LinkedListNumbers *ll, double index){
   double i;
   LinkedListNodeNumbers *node;
@@ -5812,6 +4812,8 @@ double LinkedListNumbersIndex(LinkedListNumbers *ll, double index){
 
   return node->value;
 }
+
+
 void LinkedListInsertNumber(LinkedListNumbers *ll, double index, double value){
   double i;
   LinkedListNodeNumbers *node, *tmp;
@@ -5835,6 +4837,8 @@ void LinkedListInsertNumber(LinkedListNumbers *ll, double index, double value){
     node->next->end = false;
   }
 }
+
+
 void LinkedListSet(LinkedListNumbers *ll, double index, double value){
   double i;
   LinkedListNodeNumbers *node;
@@ -5846,6 +4850,8 @@ void LinkedListSet(LinkedListNumbers *ll, double index, double value){
 
   node->next->value = value;
 }
+
+
 void LinkedListRemoveNumber(LinkedListNumbers *ll, double index){
   double i;
   LinkedListNodeNumbers *node, *prev;
@@ -5865,6 +4871,8 @@ void LinkedListRemoveNumber(LinkedListNumbers *ll, double index){
     prev->next = prev->next->next;
   }
 }
+
+
 void freeLinkedListNumbers(LinkedListNumbers *ll){
   LinkedListNodeNumbers *node, *prev;
 
@@ -5878,6 +4886,8 @@ void freeLinkedListNumbers(LinkedListNumbers *ll){
 
   free(node);
 }
+
+
 void freeLinkedListNumbersArray(LinkedListNumbers **lls, size_t llsLength){
   double i;
 
@@ -5886,6 +4896,8 @@ void freeLinkedListNumbersArray(LinkedListNumbers **lls, size_t llsLength){
   }
   free(lls);
 }
+
+
 double *LinkedListNumbersToArray(size_t *returnArrayLength, LinkedListNumbers *ll){
   double *array;
   size_t arrayLength;
@@ -5907,6 +4919,8 @@ double *LinkedListNumbersToArray(size_t *returnArrayLength, LinkedListNumbers *l
   *returnArrayLength = arrayLength;
   return array;
 }
+
+
 LinkedListNumbers *ArrayToLinkedListNumbers(double *array, size_t arrayLength){
   LinkedListNumbers *ll;
   double i;
@@ -5919,6 +4933,8 @@ LinkedListNumbers *ArrayToLinkedListNumbers(double *array, size_t arrayLength){
 
   return ll;
 }
+
+
 bool LinkedListNumbersEqual(LinkedListNumbers *a, LinkedListNumbers *b){
   bool equal, done;
   LinkedListNodeNumbers *an, *bn;
@@ -5945,6 +4961,8 @@ bool LinkedListNumbersEqual(LinkedListNumbers *a, LinkedListNumbers *b){
 
   return equal;
 }
+
+
 LinkedListCharacters *CreateLinkedListCharacter(){
   LinkedListCharacters *ll;
 
@@ -5955,6 +4973,8 @@ LinkedListCharacters *CreateLinkedListCharacter(){
 
   return ll;
 }
+
+
 void LinkedListAddCharacter(LinkedListCharacters *ll, char value){
   ll->last->end = false;
   ll->last->value = value;
@@ -5962,6 +4982,8 @@ void LinkedListAddCharacter(LinkedListCharacters *ll, char value){
   ll->last->next->end = true;
   ll->last = ll->last->next;
 }
+
+
 char *LinkedListCharactersToArray(size_t *returnArrayLength, LinkedListCharacters *ll){
   char *array;
   size_t arrayLength;
@@ -5983,6 +5005,8 @@ char *LinkedListCharactersToArray(size_t *returnArrayLength, LinkedListCharacter
   *returnArrayLength = arrayLength;
   return array;
 }
+
+
 double LinkedListCharactersLength(LinkedListCharacters *ll){
   double l;
   LinkedListNodeCharacters *node;
@@ -5996,6 +5020,8 @@ double LinkedListCharactersLength(LinkedListCharacters *ll){
 
   return l;
 }
+
+
 void freeLinkedListCharacter(LinkedListCharacters *ll){
   LinkedListNodeCharacters *node, *prev;
 
@@ -6009,6 +5035,8 @@ void freeLinkedListCharacter(LinkedListCharacters *ll){
 
   free(node);
 }
+
+
 void LinkedListCharactersAddString(LinkedListCharacters *ll, char *str, size_t strLength){
   double i;
 
@@ -6016,6 +5044,8 @@ void LinkedListCharactersAddString(LinkedListCharacters *ll, char *str, size_t s
     LinkedListAddCharacter(ll, str[(int)(i)]);
   }
 }
+
+
 DynamicArrayNumbers *CreateDynamicArrayNumbers(){
   DynamicArrayNumbers *da;
 
@@ -6026,6 +5056,8 @@ DynamicArrayNumbers *CreateDynamicArrayNumbers(){
 
   return da;
 }
+
+
 DynamicArrayNumbers *CreateDynamicArrayNumbersWithInitialCapacity(double capacity){
   DynamicArrayNumbers *da;
 
@@ -6036,6 +5068,8 @@ DynamicArrayNumbers *CreateDynamicArrayNumbersWithInitialCapacity(double capacit
 
   return da;
 }
+
+
 void DynamicArrayAddNumber(DynamicArrayNumbers *da, double value){
   if(da->length == (double)da->arrayLength){
     DynamicArrayNumbersIncreaseSize(da);
@@ -6044,6 +5078,8 @@ void DynamicArrayAddNumber(DynamicArrayNumbers *da, double value){
   da->array[(int)(da->length)] = value;
   da->length = da->length + 1.0;
 }
+
+
 void DynamicArrayNumbersIncreaseSize(DynamicArrayNumbers *da){
   double newLength, i;
   double *newArray;
@@ -6062,6 +5098,8 @@ void DynamicArrayNumbersIncreaseSize(DynamicArrayNumbers *da){
   da->array = newArray;
   da->arrayLength = newArrayLength;
 }
+
+
 bool DynamicArrayNumbersDecreaseSizeNecessary(DynamicArrayNumbers *da){
   bool needsDecrease;
 
@@ -6073,6 +5111,8 @@ bool DynamicArrayNumbersDecreaseSizeNecessary(DynamicArrayNumbers *da){
 
   return needsDecrease;
 }
+
+
 void DynamicArrayNumbersDecreaseSize(DynamicArrayNumbers *da){
   double newLength, i;
   double *newArray;
@@ -6091,12 +5131,18 @@ void DynamicArrayNumbersDecreaseSize(DynamicArrayNumbers *da){
   da->array = newArray;
   da->arrayLength = newArrayLength;
 }
+
+
 double DynamicArrayNumbersIndex(DynamicArrayNumbers *da, double index){
   return da->array[(int)(index)];
 }
+
+
 double DynamicArrayNumbersLength(DynamicArrayNumbers *da){
   return da->length;
 }
+
+
 void DynamicArrayInsertNumber(DynamicArrayNumbers *da, double index, double value){
   double i;
 
@@ -6109,9 +5155,10 @@ void DynamicArrayInsertNumber(DynamicArrayNumbers *da, double index, double valu
   }
 
   da->array[(int)(index)] = value;
-
   da->length = da->length + 1.0;
 }
+
+
 bool DynamicArrayNumberSet(DynamicArrayNumbers *da, double index, double value){
   bool success;
 
@@ -6124,6 +5171,8 @@ bool DynamicArrayNumberSet(DynamicArrayNumbers *da, double index, double value){
 
   return success;
 }
+
+
 void DynamicArrayRemoveNumber(DynamicArrayNumbers *da, double index){
   double i;
 
@@ -6137,10 +5186,14 @@ void DynamicArrayRemoveNumber(DynamicArrayNumbers *da, double index){
     DynamicArrayNumbersDecreaseSize(da);
   }
 }
+
+
 void freeDynamicArrayNumbers(DynamicArrayNumbers *da){
   free(da->array);
   free(da);
 }
+
+
 double *DynamicArrayNumbersToArray(size_t *returnArrayLength, DynamicArrayNumbers *da){
   double *array;
   size_t arrayLength;
@@ -6156,20 +5209,13 @@ double *DynamicArrayNumbersToArray(size_t *returnArrayLength, DynamicArrayNumber
   *returnArrayLength = arrayLength;
   return array;
 }
+
+
 DynamicArrayNumbers *ArrayToDynamicArrayNumbersWithOptimalSize(double *array, size_t arrayLength){
   DynamicArrayNumbers *da;
   double i;
   double c, n, newCapacity;
 
-  /*
-         c = 10*(3/2)^n
-         log(c) = log(10*(3/2)^n)
-         log(c) = log(10) + log((3/2)^n)
-         log(c) = 1 + log((3/2)^n)
-         log(c) - 1 = log((3/2)^n)
-         log(c) - 1 = n*log(3/2)
-         n = (log(c) - 1)/log(3/2)
-         */
   c = (double)arrayLength;
   n = (log(c) - 1.0)/log(3.0/2.0);
   newCapacity = floor(n) + 1.0;
@@ -6182,6 +5228,8 @@ DynamicArrayNumbers *ArrayToDynamicArrayNumbersWithOptimalSize(double *array, si
 
   return da;
 }
+
+
 DynamicArrayNumbers *ArrayToDynamicArrayNumbers(double *array, size_t arrayLength){
   DynamicArrayNumbers *da;
 
@@ -6191,6 +5239,8 @@ DynamicArrayNumbers *ArrayToDynamicArrayNumbers(double *array, size_t arrayLengt
 
   return da;
 }
+
+
 bool DynamicArrayNumbersEqual(DynamicArrayNumbers *a, DynamicArrayNumbers *b){
   bool equal;
   double i;
@@ -6208,6 +5258,8 @@ bool DynamicArrayNumbersEqual(DynamicArrayNumbers *a, DynamicArrayNumbers *b){
 
   return equal;
 }
+
+
 LinkedListNumbers *DynamicArrayNumbersToLinkedList(DynamicArrayNumbers *da){
   LinkedListNumbers *ll;
   double i;
@@ -6220,6 +5272,8 @@ LinkedListNumbers *DynamicArrayNumbersToLinkedList(DynamicArrayNumbers *da){
 
   return ll;
 }
+
+
 DynamicArrayNumbers *LinkedListToDynamicArrayNumbers(LinkedListNumbers *ll){
   DynamicArrayNumbers *da;
   double i;
@@ -6240,6 +5294,8 @@ DynamicArrayNumbers *LinkedListToDynamicArrayNumbers(LinkedListNumbers *ll){
 
   return da;
 }
+
+
 double DynamicArrayNumbersIndexOf(DynamicArrayNumbers *arr, double n, BooleanReference *foundReference){
   bool found;
   double i;
@@ -6260,6 +5316,8 @@ double DynamicArrayNumbersIndexOf(DynamicArrayNumbers *arr, double n, BooleanRef
 
   return i;
 }
+
+
 bool DynamicArrayNumbersIsInArray(DynamicArrayNumbers *arr, double n){
   bool found;
   double i;
@@ -6273,6 +5331,8 @@ bool DynamicArrayNumbersIsInArray(DynamicArrayNumbers *arr, double n){
 
   return found;
 }
+
+
 char *AddCharacter(size_t *returnArrayLength, char *list, size_t listLength, char a){
   char *newlist;
   size_t newlistLength;
@@ -6290,9 +5350,13 @@ char *AddCharacter(size_t *returnArrayLength, char *list, size_t listLength, cha
   *returnArrayLength = newlistLength;
   return newlist;
 }
+
+
 void AddCharacterRef(StringReference *list, char i){
   list->string = AddCharacter(&list->stringLength, list->string, list->stringLength, i);
 }
+
+
 char *RemoveCharacter(size_t *returnArrayLength, char *list, size_t listLength, double n){
   char *newlist;
   size_t newlistLength;
@@ -6319,12 +5383,18 @@ char *RemoveCharacter(size_t *returnArrayLength, char *list, size_t listLength, 
   *returnArrayLength = newlistLength;
   return newlist;
 }
+
+
 char GetCharacterRef(StringReference *list, double i){
   return list->string[(int)(i)];
 }
+
+
 void RemoveCharacterRef(StringReference *list, double i){
   list->string = RemoveCharacter(&list->stringLength, list->string, list->stringLength, i);
 }
+
+
 ByteArray *ReadXbytes(ByteArray *data, NumberReference *position, double length){
   ByteArray *r;
   double i;
@@ -6337,6 +5407,8 @@ ByteArray *ReadXbytes(ByteArray *data, NumberReference *position, double length)
 
   return r;
 }
+
+
 double Read4bytesBE(ByteArray *data, NumberReference *position){
   double r;
 
@@ -6348,6 +5420,8 @@ double Read4bytesBE(ByteArray *data, NumberReference *position){
 
   return r;
 }
+
+
 double Read2bytesBE(ByteArray *data, NumberReference *position){
   double r;
 
@@ -6357,6 +5431,8 @@ double Read2bytesBE(ByteArray *data, NumberReference *position){
 
   return r;
 }
+
+
 double ReadByte(ByteArray *data, NumberReference *position){
   double next;
 
@@ -6365,6 +5441,8 @@ double ReadByte(ByteArray *data, NumberReference *position){
 
   return next;
 }
+
+
 double Read4bytesLE(ByteArray *data, NumberReference *position){
   double r;
 
@@ -6376,16 +5454,22 @@ double Read4bytesLE(ByteArray *data, NumberReference *position){
 
   return r;
 }
+
+
 void WriteByte(ByteArray *data, double b, NumberReference *position){
   data->bytes[(int)(position->numberValue)] = b;
   position->numberValue = position->numberValue + 1.0;
 }
+
+
 void Write2BytesLE(ByteArray *data, double b, NumberReference *position){
   data->bytes[(int)(position->numberValue)] = BytesRound(fmod(b, pow(2.0, 8.0)));
   position->numberValue = position->numberValue + 1.0;
   data->bytes[(int)(position->numberValue)] = fmod(floor(b/pow(2.0, 8.0)), pow(2.0, 8.0));
   position->numberValue = position->numberValue + 1.0;
 }
+
+
 void Write4BytesLE(ByteArray *data, double b, NumberReference *position){
   data->bytes[(int)(position->numberValue)] = BytesRound(fmod(b, pow(2.0, 8.0)));
   position->numberValue = position->numberValue + 1.0;
@@ -6396,12 +5480,16 @@ void Write4BytesLE(ByteArray *data, double b, NumberReference *position){
   data->bytes[(int)(position->numberValue)] = fmod(floor(b/pow(2.0, 24.0)), pow(2.0, 8.0));
   position->numberValue = position->numberValue + 1.0;
 }
+
+
 void Write2BytesBE(ByteArray *data, double b, NumberReference *position){
   data->bytes[(int)(position->numberValue)] = fmod(floor(b/pow(2.0, 8.0)), pow(2.0, 8.0));
   position->numberValue = position->numberValue + 1.0;
   data->bytes[(int)(position->numberValue)] = BytesRound(fmod(b, pow(2.0, 8.0)));
   position->numberValue = position->numberValue + 1.0;
 }
+
+
 void Write4BytesBE(ByteArray *data, double b, NumberReference *position){
   data->bytes[(int)(position->numberValue)] = fmod(floor(b/pow(2.0, 24.0)), pow(2.0, 8.0));
   position->numberValue = position->numberValue + 1.0;
@@ -6412,6 +5500,8 @@ void Write4BytesBE(ByteArray *data, double b, NumberReference *position){
   data->bytes[(int)(position->numberValue)] = BytesRound(fmod(b, pow(2.0, 8.0)));
   position->numberValue = position->numberValue + 1.0;
 }
+
+
 void WriteStringBytes(ByteArray *data, char *cs, size_t csLength, NumberReference *position){
   double i, v;
 
@@ -6420,9 +5510,13 @@ void WriteStringBytes(ByteArray *data, char *cs, size_t csLength, NumberReferenc
     WriteByte(data, v, position);
   }
 }
+
+
 double BytesRound(double x){
   return floor(x + 0.5);
 }
+
+
 double *ByteArrayToNumberArray(size_t *returnArrayLength, ByteArray *src){
   double *dst;
   size_t dstLength;
@@ -6438,6 +5532,8 @@ double *ByteArrayToNumberArray(size_t *returnArrayLength, ByteArray *src){
   *returnArrayLength = dstLength;
   return dst;
 }
+
+
 ByteArray *NumberArrayToByteArray(double *src, size_t srcLength){
   ByteArray *dst;
   double i, len;
@@ -6452,6 +5548,8 @@ ByteArray *NumberArrayToByteArray(double *src, size_t srcLength){
 
   return dst;
 }
+
+
 bool ByteArraysEqual(ByteArray *a, ByteArray *b){
   bool equal;
   double i;
@@ -6469,6 +5567,8 @@ bool ByteArraysEqual(ByteArray *a, ByteArray *b){
 
   return equal;
 }
+
+
 ByteArray *CopyByteArray(ByteArray *a){
   double i;
   ByteArray *n;
@@ -6483,9 +5583,13 @@ ByteArray *CopyByteArray(ByteArray *a){
 
   return n;
 }
+
+
 double ByteArrayLength(ByteArray *response){
   return (double)response->bytesLength;
 }
+
+
 ByteArray *CreateAndFillByteArray(double length, double value){
   ByteArray *bytes;
   double i;
@@ -6500,6 +5604,8 @@ ByteArray *CreateAndFillByteArray(double length, double value){
 
   return bytes;
 }
+
+
 ByteArray *CreateByteArray(double length){
   ByteArray *bytes;
 
@@ -6509,12 +5615,18 @@ ByteArray *CreateByteArray(double length){
 
   return bytes;
 }
+
+
 void SetByte(ByteArray *array, double index, double value){
   array->bytes[(int)(index)] = value;
 }
+
+
 double GetByte(ByteArray *array, double index){
   return array->bytes[(int)(index)];
 }
+
+
 void AssertByteArraysEqual(ByteArray *a, ByteArray *b, NumberReference *failures){
   double i;
 
@@ -6528,10 +5640,14 @@ void AssertByteArraysEqual(ByteArray *a, ByteArray *b, NumberReference *failures
     failures->numberValue = failures->numberValue + 1.0;
   }
 }
+
+
 void freeByteArray(ByteArray *byteArray){
   free(byteArray->bytes);
   free(byteArray);
 }
+
+
 bool CopyByteArrayRange(ByteArray *a, double from, double to, ByteArray *b){
   double i, length;
   uint8_t *n;
@@ -6556,6 +5672,16 @@ bool CopyByteArrayRange(ByteArray *a, double from, double to, ByteArray *b){
 
   return success;
 }
+
+
+static void FreeBase64ByteCombinations(StringReference **comb){
+  for(double i = 0.0; i < 256.0; i = i + 1.0)
+    FreeStringReference(comb[(int)(i)]);
+
+  free(comb);
+}
+
+
 char *BytesToTextBase16(size_t *returnArrayLength, double *bytes, size_t bytesLength){
   StringReference **comb;
   size_t combLength;
@@ -6573,11 +5699,13 @@ char *BytesToTextBase16(size_t *returnArrayLength, double *bytes, size_t bytesLe
     r[(int)(2.0*i + 1.0)] = comb[(int)(v)]->string[1];
   }
 
-  FreeBase64ByteCombinations(comb, combLength);
+  FreeBase64ByteCombinations(comb);
 
   *returnArrayLength = rLength;
   return r;
 }
+
+
 double *TextToBytesBase16(size_t *returnArrayLength, char *string, size_t stringLength){
   StringReference **comb;
   size_t combLength;
@@ -6611,7 +5739,7 @@ double *TextToBytesBase16(size_t *returnArrayLength, char *string, size_t string
       r[(int)(i)] = n;
     }
 
-    FreeBase64ByteCombinations(comb, combLength);
+    FreeBase64ByteCombinations(comb);
   }else{
     r = (double*)calloc(sizeof(double) * (0.0), 1);
     rLength = 0.0;
@@ -6622,13 +5750,8 @@ double *TextToBytesBase16(size_t *returnArrayLength, char *string, size_t string
   *returnArrayLength = rLength;
   return r;
 }
-void FreeBase64ByteCombinations(StringReference **comb, size_t combLength){
-  double i;
-  for(i = 0.0; i < 256.0; i = i + 1.0){
-    FreeStringReference(comb[(int)(i)]);
-  }
-  free(comb);
-}
+
+
 StringReference **GenerateBase16ByteCombinations(size_t *returnArrayLength){
   StringReference **comb;
   size_t combLength;
@@ -6655,6 +5778,8 @@ StringReference **GenerateBase16ByteCombinations(size_t *returnArrayLength){
   *returnArrayLength = combLength;
   return comb;
 }
+
+
 double *MakeCRC32Table(size_t *returnArrayLength){
   double c, n, k;
   double *crcTable;
@@ -6678,7 +5803,9 @@ double *MakeCRC32Table(size_t *returnArrayLength){
   *returnArrayLength = crcTableLength;
   return crcTable;
 }
-double UpdateCRC32(double crc, ByteArray *buf, double *crc_table, size_t crc_tableLength){
+
+
+static inline double UpdateCRC32(double crc, ByteArray *buf, double *crc_table){
   double n, index;
 
   for(n = 0.0; n < ByteArrayLength(buf); n = n + 1.0){
@@ -6688,6 +5815,8 @@ double UpdateCRC32(double crc, ByteArray *buf, double *crc_table, size_t crc_tab
 
   return crc;
 }
+
+
 double CalculateCRC32(ByteArray *buf){
   double *crcTable;
   size_t crcTableLength;
@@ -6696,10 +5825,12 @@ double CalculateCRC32(ByteArray *buf){
   crcTable = MakeCRC32Table(&crcTableLength);
 
   b32max = pow(2.0, 32.0) - 1.0;
-  value = UpdateCRC32(b32max, buf, crcTable, crcTableLength);
+  value = UpdateCRC32(b32max, buf, crcTable);
 
   return Xor4Byte(value, b32max);
 }
+
+
 double CRC32OfInterval(ByteArray *data, double from, double length){
   ByteArray *crcBase;
   double i, crc;
@@ -6716,800 +5847,9 @@ double CRC32OfInterval(ByteArray *data, double from, double length){
 
   return crc;
 }
-ZLIBStruct *ZLibCompressNoCompression(ByteArray *data){
-  ZLIBStruct *zlibStruct;
 
-  zlibStruct = (ZLIBStruct *)calloc(sizeof(ZLIBStruct), 1);
 
-  zlibStruct->CMF = 120.0;
-  zlibStruct->FLG = 1.0;
-  zlibStruct->CompressedDataBlocks = DeflateDataNoCompression(data);
-  zlibStruct->Adler32CheckValue = ComputeAdler32(data);
-
-  return zlibStruct;
-}
-ZLIBStruct *ZLibCompressStaticHuffman(ByteArray *data, double level){
-  ZLIBStruct *zlibStruct;
-
-  zlibStruct = (ZLIBStruct *)calloc(sizeof(ZLIBStruct), 1);
-
-  zlibStruct->CMF = 120.0;
-  zlibStruct->FLG = 1.0;
-  zlibStruct->CompressedDataBlocks = DeflateDataStaticHuffman(data, level);
-  zlibStruct->Adler32CheckValue = ComputeAdler32(data);
-
-  return zlibStruct;
-}
-char charToLowerCase(char character){
-  char toReturn;
-
-  toReturn = character;
-  if(character == 'A'){
-    toReturn = 'a';
-  }else if(character == 'B'){
-    toReturn = 'b';
-  }else if(character == 'C'){
-    toReturn = 'c';
-  }else if(character == 'D'){
-    toReturn = 'd';
-  }else if(character == 'E'){
-    toReturn = 'e';
-  }else if(character == 'F'){
-    toReturn = 'f';
-  }else if(character == 'G'){
-    toReturn = 'g';
-  }else if(character == 'H'){
-    toReturn = 'h';
-  }else if(character == 'I'){
-    toReturn = 'i';
-  }else if(character == 'J'){
-    toReturn = 'j';
-  }else if(character == 'K'){
-    toReturn = 'k';
-  }else if(character == 'L'){
-    toReturn = 'l';
-  }else if(character == 'M'){
-    toReturn = 'm';
-  }else if(character == 'N'){
-    toReturn = 'n';
-  }else if(character == 'O'){
-    toReturn = 'o';
-  }else if(character == 'P'){
-    toReturn = 'p';
-  }else if(character == 'Q'){
-    toReturn = 'q';
-  }else if(character == 'R'){
-    toReturn = 'r';
-  }else if(character == 'S'){
-    toReturn = 's';
-  }else if(character == 'T'){
-    toReturn = 't';
-  }else if(character == 'U'){
-    toReturn = 'u';
-  }else if(character == 'V'){
-    toReturn = 'v';
-  }else if(character == 'W'){
-    toReturn = 'w';
-  }else if(character == 'X'){
-    toReturn = 'x';
-  }else if(character == 'Y'){
-    toReturn = 'y';
-  }else if(character == 'Z'){
-    toReturn = 'z';
-  }
-
-  return toReturn;
-}
-char charToUpperCase(char character){
-  char toReturn;
-
-  toReturn = character;
-  if(character == 'a'){
-    toReturn = 'A';
-  }else if(character == 'b'){
-    toReturn = 'B';
-  }else if(character == 'c'){
-    toReturn = 'C';
-  }else if(character == 'd'){
-    toReturn = 'D';
-  }else if(character == 'e'){
-    toReturn = 'E';
-  }else if(character == 'f'){
-    toReturn = 'F';
-  }else if(character == 'g'){
-    toReturn = 'G';
-  }else if(character == 'h'){
-    toReturn = 'H';
-  }else if(character == 'i'){
-    toReturn = 'I';
-  }else if(character == 'j'){
-    toReturn = 'J';
-  }else if(character == 'k'){
-    toReturn = 'K';
-  }else if(character == 'l'){
-    toReturn = 'L';
-  }else if(character == 'm'){
-    toReturn = 'M';
-  }else if(character == 'n'){
-    toReturn = 'N';
-  }else if(character == 'o'){
-    toReturn = 'O';
-  }else if(character == 'p'){
-    toReturn = 'P';
-  }else if(character == 'q'){
-    toReturn = 'Q';
-  }else if(character == 'r'){
-    toReturn = 'R';
-  }else if(character == 's'){
-    toReturn = 'S';
-  }else if(character == 't'){
-    toReturn = 'T';
-  }else if(character == 'u'){
-    toReturn = 'U';
-  }else if(character == 'v'){
-    toReturn = 'V';
-  }else if(character == 'w'){
-    toReturn = 'W';
-  }else if(character == 'x'){
-    toReturn = 'X';
-  }else if(character == 'y'){
-    toReturn = 'Y';
-  }else if(character == 'z'){
-    toReturn = 'Z';
-  }
-
-  return toReturn;
-}
-bool charIsUpperCase(char character){
-  bool isUpper;
-
-  isUpper = true;
-  if(character == 'A'){
-  }else if(character == 'B'){
-  }else if(character == 'C'){
-  }else if(character == 'D'){
-  }else if(character == 'E'){
-  }else if(character == 'F'){
-  }else if(character == 'G'){
-  }else if(character == 'H'){
-  }else if(character == 'I'){
-  }else if(character == 'J'){
-  }else if(character == 'K'){
-  }else if(character == 'L'){
-  }else if(character == 'M'){
-  }else if(character == 'N'){
-  }else if(character == 'O'){
-  }else if(character == 'P'){
-  }else if(character == 'Q'){
-  }else if(character == 'R'){
-  }else if(character == 'S'){
-  }else if(character == 'T'){
-  }else if(character == 'U'){
-  }else if(character == 'V'){
-  }else if(character == 'W'){
-  }else if(character == 'X'){
-  }else if(character == 'Y'){
-  }else if(character == 'Z'){
-  }else{
-    isUpper = false;
-  }
-
-  return isUpper;
-}
-bool charIsLowerCase(char character){
-  bool isLower;
-
-  isLower = true;
-  if(character == 'a'){
-  }else if(character == 'b'){
-  }else if(character == 'c'){
-  }else if(character == 'd'){
-  }else if(character == 'e'){
-  }else if(character == 'f'){
-  }else if(character == 'g'){
-  }else if(character == 'h'){
-  }else if(character == 'i'){
-  }else if(character == 'j'){
-  }else if(character == 'k'){
-  }else if(character == 'l'){
-  }else if(character == 'm'){
-  }else if(character == 'n'){
-  }else if(character == 'o'){
-  }else if(character == 'p'){
-  }else if(character == 'q'){
-  }else if(character == 'r'){
-  }else if(character == 's'){
-  }else if(character == 't'){
-  }else if(character == 'u'){
-  }else if(character == 'v'){
-  }else if(character == 'w'){
-  }else if(character == 'x'){
-  }else if(character == 'y'){
-  }else if(character == 'z'){
-  }else{
-    isLower = false;
-  }
-
-  return isLower;
-}
-bool charIsLetter(char character){
-  return charIsUpperCase(character) || charIsLowerCase(character);
-}
-bool charIsNumber(char character){
-  bool isNumberx;
-
-  isNumberx = true;
-  if(character == '0'){
-  }else if(character == '1'){
-  }else if(character == '2'){
-  }else if(character == '3'){
-  }else if(character == '4'){
-  }else if(character == '5'){
-  }else if(character == '6'){
-  }else if(character == '7'){
-  }else if(character == '8'){
-  }else if(character == '9'){
-  }else{
-    isNumberx = false;
-  }
-
-  return isNumberx;
-}
-bool charIsWhiteSpace(char character){
-  bool isWhiteSpacex;
-
-  isWhiteSpacex = true;
-  if(character == ' '){
-  }else if(character == '\t'){
-  }else if(character == '\n'){
-  }else if(character == '\r'){
-  }else{
-    isWhiteSpacex = false;
-  }
-
-  return isWhiteSpacex;
-}
-bool charIsSymbol(char character){
-  bool isSymbolx;
-
-  isSymbolx = true;
-  if(character == '!'){
-  }else if(character == '\"'){
-  }else if(character == '#'){
-  }else if(character == '$'){
-  }else if(character == '%'){
-  }else if(character == '&'){
-  }else if(character == '\''){
-  }else if(character == '('){
-  }else if(character == ')'){
-  }else if(character == '*'){
-  }else if(character == '+'){
-  }else if(character == ','){
-  }else if(character == '-'){
-  }else if(character == '.'){
-  }else if(character == '/'){
-  }else if(character == ':'){
-  }else if(character == ';'){
-  }else if(character == '<'){
-  }else if(character == '='){
-  }else if(character == '>'){
-  }else if(character == '?'){
-  }else if(character == '@'){
-  }else if(character == '['){
-  }else if(character == '\\'){
-  }else if(character == ']'){
-  }else if(character == '^'){
-  }else if(character == '_'){
-  }else if(character == '`'){
-  }else if(character == '{'){
-  }else if(character == '|'){
-  }else if(character == '}'){
-  }else if(character == '~'){
-  }else{
-    isSymbolx = false;
-  }
-
-  return isSymbolx;
-}
-bool charCharacterIsBefore(char a, char b){
-  double ad, bd;
-
-  ad = a;
-  bd = b;
-
-  return ad < bd;
-}
-char charDecimalDigitToCharacter(double digit){
-  char c;
-  if(digit == 1.0){
-    c = '1';
-  }else if(digit == 2.0){
-    c = '2';
-  }else if(digit == 3.0){
-    c = '3';
-  }else if(digit == 4.0){
-    c = '4';
-  }else if(digit == 5.0){
-    c = '5';
-  }else if(digit == 6.0){
-    c = '6';
-  }else if(digit == 7.0){
-    c = '7';
-  }else if(digit == 8.0){
-    c = '8';
-  }else if(digit == 9.0){
-    c = '9';
-  }else{
-    c = '0';
-  }
-  return c;
-}
-double charCharacterToDecimalDigit(char c){
-  double digit;
-
-  if(c == '1'){
-    digit = 1.0;
-  }else if(c == '2'){
-    digit = 2.0;
-  }else if(c == '3'){
-    digit = 3.0;
-  }else if(c == '4'){
-    digit = 4.0;
-  }else if(c == '5'){
-    digit = 5.0;
-  }else if(c == '6'){
-    digit = 6.0;
-  }else if(c == '7'){
-    digit = 7.0;
-  }else if(c == '8'){
-    digit = 8.0;
-  }else if(c == '9'){
-    digit = 9.0;
-  }else{
-    digit = 0.0;
-  }
-
-  return digit;
-}
-double And4Byte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFFFFFUL){
-      return (unsigned long)n1 & (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double And2Byte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFUL){
-      return (unsigned long)n1 & (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double AndByte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFUL){
-      return (unsigned long)n1 & (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double AndBytes(double n1, double n2, double bytes){
-  double byteVal, result, i;
-
-  byteVal = 1.0;
-  result = 0.0;
-
-  if(n1 >= 0.0 && n1 < pow(2.0, bytes*8.0) && n2 >= 0.0 && n2 < pow(2.0, bytes*8.0)){
-    n1 = Truncate(n1);
-    n2 = Truncate(n2);
-    bytes = Truncate(bytes);
-
-    for(i = 0.0; i < bytes*8.0; i = i + 1.0){
-      if(fmod(n1, 2.0) == 1.0 && fmod(n2, 2.0) == 1.0){
-        result = result + byteVal;
-      }
-      n1 = floor(n1/2.0);
-      n2 = floor(n2/2.0);
-      byteVal = byteVal*2.0;
-    }
-  }
-
-  return result;
-}
-double Or4Byte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFFFFFUL){
-      return (unsigned long)n1 | (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double Or2Byte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFUL){
-      return (unsigned long)n1 | (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double OrByte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFUL){
-      return (unsigned long)n1 | (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double OrBytes(double n1, double n2, double bytes){
-  double byteVal, result, i;
-
-  byteVal = 1.0;
-  result = 0.0;
-
-  if(n1 >= 0.0 && n1 < pow(2.0, bytes*8.0) && n2 >= 0.0 && n2 < pow(2.0, bytes*8.0)){
-    n1 = Truncate(n1);
-    n2 = Truncate(n2);
-    bytes = Truncate(bytes);
-
-    for(i = 0.0; i < bytes*8.0; i = i + 1.0){
-      if(fmod(n1, 2.0) == 1.0 || fmod(n2, 2.0) == 1.0){
-        result = result + byteVal;
-      }
-      n1 = floor(n1/2.0);
-      n2 = floor(n2/2.0);
-      byteVal = byteVal*2.0;
-    }
-  }
-
-  return result;
-}
-double Xor4Byte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFFFFFUL){
-      return (unsigned long)n1 ^ (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double Xor2Byte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFUL){
-      return (unsigned long)n1 ^ (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double XorByte(double n1, double n2){
-    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFUL){
-      return (unsigned long)n1 ^ (unsigned long)n2;
-    }else{
-      return 0.0;
-    }
-}
-double XorBytes(double n1, double n2, double bytes){
-  double byteVal, result, i;
-
-  byteVal = 1.0;
-  result = 0.0;
-
-  if(n1 >= 0.0 && n1 < pow(2.0, bytes*8.0) && n2 >= 0.0 && n2 < pow(2.0, bytes*8.0)){
-    n1 = Truncate(n1);
-    n2 = Truncate(n2);
-    bytes = Truncate(bytes);
-
-    for(i = 0.0; i < bytes*8.0; i = i + 1.0){
-      if(fmod(n1, 2.0) != fmod(n2, 2.0)){
-        result = result + byteVal;
-      }
-      n1 = floor(n1/2.0);
-      n2 = floor(n2/2.0);
-      byteVal = byteVal*2.0;
-    }
-  }
-
-  return result;
-}
-double Not4Byte(double b){
-    if((double)b >= 0.0 && (double)b <= (double)0xFFFFFFFFUL){
-      return ~(unsigned long)b & 0xFFFFFFFFUL;
-    }else{
-      return 0.0;
-    }
-}
-double Not2Byte(double b){
-    if((double)b >= 0.0 && (double)b <= (double)0xFFFFUL){
-      return ~(unsigned long)b & 0xFFFFUL;
-    }else{
-      return 0.0;
-    }
-}
-double NotByte(double b){
-    if((double)b >= 0.0 && (double)b <= (double)0xFFUL){
-      return ~(unsigned long)b & 0xFFUL;
-    }else{
-      return 0.0;
-    }
-}
-double NotBytes(double b, double length){
-  double result;
-
-  result = 0.0;
-
-  if(b >= 0.0 && b < pow(2.0, length*8.0)){
-    b = Truncate(b);
-    length = Truncate(length);
-
-    result = pow(2.0, length*8.0) - b - 1.0;
-  }
-
-  return result;
-}
-double ShiftLeft4Byte(double b, double amount){
-    if((double)b >= 0.0 && (double)b <= (double)0xFFFFFFFF && (double)amount >= 0.0 && (double)amount < (double)32){
-      return (unsigned long)b << (unsigned long)amount;
-    }else{
-      return 0.0;
-    }
-}
-double ShiftLeft2Byte(double b, double amount){
-    if((double)b >= 0.0 && (double)b <= (double)0xFFFF && (double)amount >= 0.0 && (double)amount < (double)16){
-      return (unsigned long)b << (unsigned long)amount;
-    }else{
-      return 0.0;
-    }
-}
-double ShiftLeftByte(double b, double amount){
-    if((double)b >= 0.0 && (double)b <= (double)0xFF && (double)amount >= 0.0 && (double)amount < (double)8){
-      return (unsigned long)b << (unsigned long)amount;
-    }else{
-      return 0.0;
-    }
-}
-double ShiftLeftBytes(double b, double amount, double length){
-  double result;
-
-  result = 0.0;
-
-  if(b >= 0.0 && b < pow(2.0, length*8.0) && amount >= 0.0 && amount <= length*8.0){
-    b = Truncate(b);
-    amount = Truncate(amount);
-
-    result = b*pow(2.0, amount);
-  }
-
-  return result;
-}
-double ShiftRight4Byte(double b, double amount){
-    if((double)b >= 0.0 && (double)b <= (double)0xFFFFFFFF && (double)amount >= 0.0 && (double)amount < (double)32){
-      return (unsigned long)b >> (unsigned long)amount;
-    }else{
-      return 0.0;
-    }
-}
-double ShiftRight2Byte(double b, double amount){
-    if((double)b >= 0.0 && (double)b <= (double)0xFFFF && (double)amount >= 0.0 && (double)amount < (double)16){
-      return (unsigned long)b >> (unsigned long)amount;
-    }else{
-      return 0.0;
-    }
-}
-double ShiftRightByte(double b, double amount){
-    if((double)b >= 0.0 && (double)b <= (double)0xFF && (double)amount >= 0.0 && (double)amount < (double)8){
-      return (unsigned long)b >> (unsigned long)amount;
-    }else{
-      return 0.0;
-    }
-}
-double ShiftRightBytes(double b, double amount, double length){
-  double result;
-
-  result = 0.0;
-
-  if(b >= 0.0 && b < pow(2.0, length*8.0) && amount >= 0.0 && amount <= length*8.0){
-    b = Truncate(b);
-    amount = Truncate(amount);
-
-    result = Truncate(b/pow(2.0, amount));
-  }
-
-  return result;
-}
-double RotateLeft4Byte(double w, double n){
-  double a;
-  /*return (w << n) | (w >> (32 - n)); */
-  /* Mask the upper bits first, then rotate. */
-  a = And4Byte(w, Not4Byte(ShiftLeft4Byte(1.0, n) - 1.0));
-  return Or4Byte(ShiftLeft4Byte(a, n), ShiftRight4Byte(w, (32.0 - n)));
-}
-double RotateRight4Bytes(double w, double n){
-  double a;
-  /* return (w >> d) | (w << (32 - n)); */
-  /* Mask away the upper bits first, then perform the shift. */
-  a = And4Byte(w, ShiftLeft4Byte(1.0, n) - 1.0);
-  return Or4Byte(ShiftRight4Byte(w, n), ShiftLeft4Byte(a, 32.0 - n));
-}
-bool *CreateBooleanArrayFromNumber(size_t *returnArrayLength, double w, double size){
-  bool *out;
-  size_t outLength;
-  double p, j;
-
-  out = aCreateBooleanArray(&outLength, size, false);
-
-  j = 0.0;
-  p = 1.0;
-  for(; p < w; ){
-    p = p*2.0;
-    j = j + 1.0;
-  }
-
-  for(; j >= 0.0; j = j - 1.0){
-    if(w >= p){
-      w = w - p;
-      if(j < size){
-        out[(int)(size - 1.0 - j)] = true;
-      }
-    }
-    p = p/2.0;
-  }
-
-  *returnArrayLength = outLength;
-  return out;
-}
-double BooleanArrayToNumber(bool *bits, size_t bitsLength){
-  double w, i, p;
-
-  w = 0.0;
-  p = 1.0;
-  for(i = 31.0; i >= 0.0; i = i - 1.0){
-    if(bits[(int)(i)]){
-      w = w + p;
-    }
-    p = p*2.0;
-  }
-
-  return w;
-}
-bool *BooleanAnd(size_t *returnArrayLength, bool *a, size_t aLength, bool *b, size_t bLength){
-  bool *out;
-  size_t outLength;
-  double i, length;
-
-  length = (double)aLength;
-
-  out = (bool*)calloc(sizeof(bool) * (length), 1);
-  outLength = length;
-
-  for(i = 0.0; i < length; i = i + 1.0){
-    out[(int)(i)] = a[(int)(i)] && b[(int)(i)];
-  }
-  *returnArrayLength = outLength;
-  return out;
-}
-bool *BooleanXor(size_t *returnArrayLength, bool *a, size_t aLength, bool *b, size_t bLength){
-  bool *out;
-  size_t outLength;
-  double i, length;
-
-  length = (double)aLength;
-
-  out = (bool*)calloc(sizeof(bool) * (length), 1);
-  outLength = length;
-
-  for(i = 0.0; i < length; i = i + 1.0){
-    if(a[(int)(i)] || b[(int)(i)]){
-      if( !(a[(int)(i)] && b[(int)(i)]) ){
-        out[(int)(i)] = true;
-      }
-    }
-  }
-  *returnArrayLength = outLength;
-  return out;
-}
-bool *BooleanNot(size_t *returnArrayLength, bool *a, size_t aLength){
-  bool *out;
-  size_t outLength;
-  double i, length;
-
-  length = (double)aLength;
-
-  out = (bool*)calloc(sizeof(bool) * (length), 1);
-  outLength = length;
-
-  for(i = 0.0; i < length; i = i + 1.0){
-    out[(int)(i)] =  !a[(int)(i)] ;
-  }
-  *returnArrayLength = outLength;
-  return out;
-}
-bool *ShiftBitsRight4Byte(size_t *returnArrayLength, bool *w, size_t wLength, double n){
-  bool *wb;
-  bool *ob;
-  size_t obLength;
-  double i, it;
-  bool f;
-  f = false;
-
-  if(n == 0.0){
-    ob = w;
-    obLength = wLength;
-  }else{
-    wb = w;
-    ob = (bool*)calloc(sizeof(bool) * (32.0), 1);
-    obLength = 32.0;
-
-    for(i = 0.0; i < 32.0; i = i + 1.0){
-      it = i - n;
-
-      if(it < 0.0){
-        f = false;
-      }else{
-        f = wb[(int)(it)];
-      }
-
-      ob[(int)(i)] = f;
-    }
-  }
-
-  *returnArrayLength = obLength;
-  return ob;
-}
-double ReadNextBit(double *data, size_t dataLength, NumberReference *nextbit){
-  double bytenr, bitnumber, bit, b;
-
-  bytenr = floor(nextbit->numberValue/8.0);
-  bitnumber = fmod(nextbit->numberValue, 8.0);
-
-  b = data[(int)(bytenr)];
-
-  bit = fmod(floor(b/pow(2.0, bitnumber)), 2.0);
-
-  nextbit->numberValue = nextbit->numberValue + 1.0;
-
-  return bit;
-}
-double BitExtract(double b, double fromInc, double toInc){
-  return fmod(floor(b/pow(2.0, fromInc)), pow(2.0, toInc + 1.0 - fromInc));
-}
-double ReadBitRange(double *data, size_t dataLength, NumberReference *nextbit, double length){
-  double startbyte, endbyte;
-  double startbit, endbit;
-  double number;
-
-  number = 0.0;
-
-  startbyte = floor(nextbit->numberValue/8.0);
-  endbyte = floor((nextbit->numberValue + length)/8.0);
-
-  startbit = fmod(nextbit->numberValue, 8.0);
-  endbit = fmod(nextbit->numberValue + length - 1.0, 8.0);
-
-  if(startbyte == endbyte){
-    number = BitExtract(data[(int)(startbyte)], startbit, endbit);
-  }
-
-  nextbit->numberValue = nextbit->numberValue + length;
-
-  return number;
-}
-void SkipToBoundary(NumberReference *nextbit){
-  double skip;
-
-  skip = 8.0 - fmod(nextbit->numberValue, 8.0);
-  nextbit->numberValue = nextbit->numberValue + skip;
-}
-double ReadNextByteBoundary(double *data, size_t dataLength, NumberReference *nextbit){
-  double bytenr, b;
-
-  bytenr = floor(nextbit->numberValue/8.0);
-  b = data[(int)(bytenr)];
-  nextbit->numberValue = nextbit->numberValue + 8.0;
-
-  return b;
-}
-double Read2bytesByteBoundary(double *data, size_t dataLength, NumberReference *nextbit){
-  double r;
-
-  r = 0.0;
-  r = r + pow(2.0, 8.0)*ReadNextByteBoundary(data, dataLength, nextbit);
-  r = r + ReadNextByteBoundary(data, dataLength, nextbit);
-
-  return r;
-}
-double ComputeAdler32(ByteArray *data){
+static double ComputeAdler32(ByteArray *data){
   double a, b, m, i;
 
   a = 1.0;
@@ -7523,6 +5863,90 @@ double ComputeAdler32(ByteArray *data){
 
   return b*pow(2.0, 16.0) + a;
 }
+
+
+ZLIBStruct *ZLibCompressNoCompression(ByteArray *data){
+  ZLIBStruct *zlibStruct;
+
+  zlibStruct = (ZLIBStruct *)calloc(sizeof(ZLIBStruct), 1);
+
+  zlibStruct->CMF = 120.0;
+  zlibStruct->FLG = 1.0;
+  zlibStruct->CompressedDataBlocks = DeflateDataNoCompression(data);
+  zlibStruct->Adler32CheckValue = ComputeAdler32(data);
+
+  return zlibStruct;
+}
+
+
+ZLIBStruct *ZLibCompressStaticHuffman(ByteArray *data, double level){
+  ZLIBStruct *zlibStruct;
+
+  zlibStruct = (ZLIBStruct *)calloc(sizeof(ZLIBStruct), 1);
+
+  zlibStruct->CMF = 120.0;
+  zlibStruct->FLG = 1.0;
+  zlibStruct->CompressedDataBlocks = DeflateDataStaticHuffman(data, level);
+  zlibStruct->Adler32CheckValue = ComputeAdler32(data);
+
+  return zlibStruct;
+}
+
+
+double And4Byte(double n1, double n2){
+    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFFFFFUL){
+      return (unsigned long)n1 & (unsigned long)n2;
+    }else{
+      return 0.0;
+    }
+}
+
+
+double Or4Byte(double n1, double n2){
+    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFFFFFUL){
+      return (unsigned long)n1 | (unsigned long)n2;
+    }else{
+      return 0.0;
+    }
+}
+
+
+double Xor4Byte(double n1, double n2){
+    if((double)n1 >= 0.0 && (double)n1 <= (double)0xFFFFFFFFUL && (double)n2 >= 0.0 && (double)n2 <= (double)0xFFFFFFFFUL){
+      return (unsigned long)n1 ^ (unsigned long)n2;
+    }else{
+      return 0.0;
+    }
+}
+
+
+double Not2Byte(double b){
+    if((double)b >= 0.0 && (double)b <= (double)0xFFFFUL){
+      return ~(unsigned long)b & 0xFFFFUL;
+    }else{
+      return 0.0;
+    }
+}
+
+
+double ShiftLeft4Byte(double b, double amount){
+    if((double)b >= 0.0 && (double)b <= (double)0xFFFFFFFF && (double)amount >= 0.0 && (double)amount < (double)32){
+      return (unsigned long)b << (unsigned long)amount;
+    }else{
+      return 0.0;
+    }
+}
+
+
+double ShiftRight4Byte(double b, double amount){
+    if((double)b >= 0.0 && (double)b <= (double)0xFFFFFFFF && (double)amount >= 0.0 && (double)amount < (double)32){
+      return (unsigned long)b >> (unsigned long)amount;
+    }else{
+      return 0.0;
+    }
+}
+
+
 ByteArray *Pack(ByteArray *data, double level){
   ByteArray *output, *trimmed;
   double read, i, j, write, start, len, beststart, bestlen, maxforward, size, plain, maxlength;
@@ -7609,6 +6033,8 @@ ByteArray *Pack(ByteArray *data, double level){
 
   return trimmed;
 }
+
+
 ByteArray *Unpack(ByteArray *data){
   ByteArray *output;
   double read, write, i, dist, length, pos, start, unpackedLength;
@@ -7674,180 +6100,9 @@ ByteArray *Unpack(ByteArray *data){
 
   return output;
 }
-ByteArray *DeflateDataStaticHuffman(ByteArray *data, double level){
-  ByteArray *bytes;
-  NumberReference *currentBit;
-  double i;
-  ByteArray *copy;
-  NumberReference *code, *length, *compressedCode, *lengthAdditionLength, *distanceCode;
-  NumberReference *distanceReference, *lengthReference, *lengthAddition;
-  NumberReference *distanceAdditionReference, *distanceAdditionLengthReference;
-  double *bitReverseLookupTable;
-  size_t bitReverseLookupTableLength;
-  BooleanReference *match;
 
-  code = CreateNumberReference(0.0);
-  length = CreateNumberReference(0.0);
-  compressedCode = CreateNumberReference(0.0);
-  lengthAdditionLength = CreateNumberReference(0.0);
-  distanceCode = CreateNumberReference(0.0);
-  distanceReference = CreateNumberReference(0.0);
-  lengthReference = CreateNumberReference(0.0);
-  lengthAddition = CreateNumberReference(0.0);
-  distanceAdditionReference = CreateNumberReference(0.0);
-  distanceAdditionLengthReference = CreateNumberReference(0.0);
-  match = (BooleanReference *)calloc(sizeof(BooleanReference), 1);
 
-  bytes = CreateAndFillByteArray(fmax(ByteArrayLength(data)*1.0, 100.0), 0.0);
-  currentBit = CreateNumberReference(0.0);
-
-  bitReverseLookupTable = GenerateBitReverseLookupTable(&bitReverseLookupTableLength, 9.0);
-
-  /* Final block */
-  AppendBitsToBytesRight(bytes, currentBit, 1.0, 1.0);
-  /* Fixed code */
-  AppendBitsToBytesRight(bytes, currentBit, 1.0, 2.0);
-
-  for(i = 0.0; i < ByteArrayLength(data); ){
-    FindMatch(data, i, distanceReference, lengthReference, match, level);
-
-    if(match->booleanValue){
-      GetDeflateLengthCode(lengthReference->numberValue, compressedCode, lengthAddition, lengthAdditionLength);
-      GetDeflateDistanceCode(distanceReference->numberValue, distanceCode, distanceAdditionReference, distanceAdditionLengthReference, bitReverseLookupTable, bitReverseLookupTableLength);
-    }
-
-    if( !match->booleanValue ){
-      GetDeflateStaticHuffmanCode(GetByte(data, i), code, length, bitReverseLookupTable, bitReverseLookupTableLength);
-      AppendBitsToBytesRight(bytes, currentBit, code->numberValue, length->numberValue);
-      i = i + 1.0;
-    }else{
-      GetDeflateStaticHuffmanCode(compressedCode->numberValue, code, length, bitReverseLookupTable, bitReverseLookupTableLength);
-      AppendBitsToBytesRight(bytes, currentBit, code->numberValue, length->numberValue);
-      AppendBitsToBytesRight(bytes, currentBit, lengthAddition->numberValue, lengthAdditionLength->numberValue);
-      AppendBitsToBytesRight(bytes, currentBit, distanceCode->numberValue, 5.0);
-      AppendBitsToBytesRight(bytes, currentBit, distanceAdditionReference->numberValue, distanceAdditionLengthReference->numberValue);
-      i = i + lengthReference->numberValue;
-    }
-  }
-
-  /* Stop symbol */
-  GetDeflateStaticHuffmanCode(256.0, code, length, bitReverseLookupTable, bitReverseLookupTableLength);
-  AppendBitsToBytesRight(bytes, currentBit, code->numberValue, length->numberValue);
-
-  copy = (ByteArray *)calloc(sizeof(ByteArray), 1);
-  CopyByteArrayRange(bytes, 0.0, ceil(currentBit->numberValue/8.0), copy);
-  free(bytes);
-
-  return copy;
-}
-void FindMatch(ByteArray *data, double pos, NumberReference *distanceReference, NumberReference *lengthReference, BooleanReference *match, double level){
-  double i, j;
-  double deflateMinMength, deflateMaxLength, deflateMaxDistance;
-  double longest, maxLength, distanceForMax;
-  double startDistance, matchLength;
-  bool done;
-
-  deflateMinMength = 3.0;
-  deflateMaxLength = 258.0;
-
-  longest = fmin(pos - 1.0, deflateMaxLength);
-  longest = fmin(ByteArrayLength(data) - pos, longest);
-
-  deflateMaxDistance = floor(32768.0/10.0*level);
-
-  startDistance = fmin(pos, deflateMaxDistance);
-
-  if(longest >= deflateMinMength){
-    maxLength = 0.0;
-    distanceForMax = 0.0;
-
-    for(i = pos - 1.0; i >= pos - startDistance && maxLength != longest; i = i - 1.0){
-      matchLength = 0.0;
-      done = false;
-      for(j = 0.0; j < longest &&  !done ; j = j + 1.0){
-        if(GetByte(data, i + j) == GetByte(data, pos + j)){
-          matchLength = matchLength + 1.0;
-        }else{
-          done = true;
-        }
-      }
-
-      if(matchLength >= deflateMinMength && matchLength > maxLength){
-        maxLength = matchLength;
-        distanceForMax = pos - i;
-      }
-    }
-
-    if(maxLength >= deflateMinMength){
-      match->booleanValue = true;
-      lengthReference->numberValue = maxLength;
-      distanceReference->numberValue = distanceForMax;
-    }else{
-      match->booleanValue = false;
-    }
-  }else{
-    match->booleanValue = false;
-  }
-}
-double *GenerateBitReverseLookupTable(size_t *returnArrayLength, double bits){
-  double *table;
-  size_t tableLength;
-  double i;
-
-  table = (double*)calloc(sizeof(double) * (pow(2.0, bits)), 1);
-  tableLength = pow(2.0, bits);
-
-  for(i = 0.0; i < (double)tableLength; i = i + 1.0){
-    table[(int)(i)] = ReverseBits(i, 32.0);
-  }
-
-  *returnArrayLength = tableLength;
-  return table;
-}
-double ReverseBits(double x, double bits){
-  double b, bit, i;
-
-  b = 0.0;
-
-  for(i = 0.0; i < bits; i = i + 1.0){
-    b = ShiftLeft4Byte(b, 1.0);
-    bit = And4Byte(x, 1.0);
-    b = Or4Byte(b, bit);
-    x = ShiftRight4Byte(x, 1.0);
-  }
-
-  return b;
-}
-ByteArray *DeflateDataNoCompression(ByteArray *data){
-  ByteArray *deflated;
-  NumberReference *position;
-  double block, i, blocks, blocklength, maxblocksize;
-
-  maxblocksize = pow(2.0, 16.0) - 1.0;
-  blocks = ceil(ByteArrayLength(data)/maxblocksize);
-
-  position = CreateNumberReference(0.0);
-
-  deflated = CreateByteArray((1.0 + 4.0)*blocks + ByteArrayLength(data));
-
-  for(block = 0.0; block < blocks; block = block + 1.0){
-    if(block + 1.0 == blocks){
-      WriteByte(deflated, 1.0, position);
-    }else{
-      WriteByte(deflated, 0.0, position);
-    }
-    blocklength = fmin(ByteArrayLength(data) - block*maxblocksize, maxblocksize);
-    Write2BytesLE(deflated, blocklength, position);
-    Write2BytesLE(deflated, Not2Byte(blocklength), position);
-
-    for(i = 0.0; i < blocklength; i = i + 1.0){
-      WriteByte(deflated, GetByte(data, block*maxblocksize + i), position);
-    }
-  }
-
-  return deflated;
-}
-void GetDeflateStaticHuffmanCode(double b, NumberReference *code, NumberReference *length, double *bitReverseLookupTable, size_t bitReverseLookupTableLength){
+static void GetDeflateStaticHuffmanCode(double b, NumberReference *code, NumberReference *length, double *bitReverseLookupTable){
   double reversed;
 
   if(b >= 0.0 && b <= 143.0){
@@ -7869,36 +6124,12 @@ void GetDeflateStaticHuffmanCode(double b, NumberReference *code, NumberReferenc
 }
 
 
-void GetDeflateLengthCode(double length, NumberReference *code, NumberReference *lengthAddition, NumberReference *lengthAdditionLength){
-  if(length >= 3.0 && length <= 10.0){
-    code->numberValue = 257.0 + length - 3.0;
-    lengthAdditionLength->numberValue = 0.0;
-  }else if(length >= 11.0 && length <= 18.0){
-    code->numberValue = 265.0 + floor((length - 11.0)/2.0);
-    lengthAddition->numberValue = floor(fmod(length - 11.0, 2.0));
-    lengthAdditionLength->numberValue = 1.0;
-  }else if(length >= 19.0 && length <= 34.0){
-    code->numberValue = 269.0 + floor((length - 19.0)/4.0);
-    lengthAddition->numberValue = floor(fmod(length - 19.0, 4.0));
-    lengthAdditionLength->numberValue = 2.0;
-  }else if(length >= 35.0 && length <= 66.0){
-    code->numberValue = 273.0 + floor((length - 35.0)/8.0);
-    lengthAddition->numberValue = floor(fmod(length - 35.0, 8.0));
-    lengthAdditionLength->numberValue = 3.0;
-  }else if(length >= 67.0 && length <= 130.0){
-    code->numberValue = 277.0 + floor((length - 67.0)/16.0);
-    lengthAddition->numberValue = floor(fmod(length - 67.0, 16.0));
-    lengthAdditionLength->numberValue = 4.0;
-  }else if(length >= 131.0 && length <= 257.0){
-    code->numberValue = 281.0 + floor((length - 131.0)/32.0);
-    lengthAddition->numberValue = floor(fmod(length - 131.0, 32.0));
-    lengthAdditionLength->numberValue = 5.0;
-  }else if(length == 258.0){
-    code->numberValue = 285.0;
-    lengthAdditionLength->numberValue = 0.0;
-  }
-}
-void GetDeflateDistanceCode(double distance, NumberReference *code, NumberReference *distanceAdditionReference, NumberReference *distanceAdditionLengthReference, double *bitReverseLookupTable, size_t bitReverseLookupTableLength){
+static void GetDeflateDistanceCode(
+        double distance
+        , NumberReference *code
+        , NumberReference *distanceAdditionReference
+        , NumberReference *distanceAdditionLengthReference
+        , double *bitReverseLookupTable){
   double reversed;
 
   if(distance >= 1.0 && distance <= 4.0){
@@ -7961,6 +6192,222 @@ void GetDeflateDistanceCode(double distance, NumberReference *code, NumberRefere
   reversed = bitReverseLookupTable[(int)(code->numberValue)];
   code->numberValue = ShiftRight4Byte(reversed, 32.0 - 5.0);
 }
+
+
+ByteArray *DeflateDataStaticHuffman(ByteArray *data, double level){
+  ByteArray *bytes;
+  NumberReference *currentBit;
+  double i;
+  ByteArray *copy;
+  NumberReference *code, *length, *compressedCode, *lengthAdditionLength, *distanceCode;
+  NumberReference *distanceReference, *lengthReference, *lengthAddition;
+  NumberReference *distanceAdditionReference, *distanceAdditionLengthReference;
+  double *bitReverseLookupTable;
+  size_t bitReverseLookupTableLength;
+  BooleanReference *match;
+
+  code = CreateNumberReference(0.0);
+  length = CreateNumberReference(0.0);
+  compressedCode = CreateNumberReference(0.0);
+  lengthAdditionLength = CreateNumberReference(0.0);
+  distanceCode = CreateNumberReference(0.0);
+  distanceReference = CreateNumberReference(0.0);
+  lengthReference = CreateNumberReference(0.0);
+  lengthAddition = CreateNumberReference(0.0);
+  distanceAdditionReference = CreateNumberReference(0.0);
+  distanceAdditionLengthReference = CreateNumberReference(0.0);
+  match = (BooleanReference *)calloc(sizeof(BooleanReference), 1);
+
+  bytes = CreateAndFillByteArray(fmax(ByteArrayLength(data)*1.0, 100.0), 0.0);
+  currentBit = CreateNumberReference(0.0);
+
+  bitReverseLookupTable = GenerateBitReverseLookupTable(&bitReverseLookupTableLength, 9.0);
+
+  /* Final block */
+  AppendBitsToBytesRight(bytes, currentBit, 1.0, 1.0);
+  /* Fixed code */
+  AppendBitsToBytesRight(bytes, currentBit, 1.0, 2.0);
+
+  for(i = 0.0; i < ByteArrayLength(data); ){
+    FindMatch(data, i, distanceReference, lengthReference, match, level);
+
+    if(match->booleanValue){
+      GetDeflateLengthCode(lengthReference->numberValue, compressedCode, lengthAddition, lengthAdditionLength);
+      GetDeflateDistanceCode(distanceReference->numberValue, distanceCode, distanceAdditionReference, distanceAdditionLengthReference, bitReverseLookupTable);
+    }
+
+    if( !match->booleanValue ){
+      GetDeflateStaticHuffmanCode(GetByte(data, i), code, length, bitReverseLookupTable);
+      AppendBitsToBytesRight(bytes, currentBit, code->numberValue, length->numberValue);
+      i = i + 1.0;
+    }else{
+      GetDeflateStaticHuffmanCode(compressedCode->numberValue, code, length, bitReverseLookupTable);
+      AppendBitsToBytesRight(bytes, currentBit, code->numberValue, length->numberValue);
+      AppendBitsToBytesRight(bytes, currentBit, lengthAddition->numberValue, lengthAdditionLength->numberValue);
+      AppendBitsToBytesRight(bytes, currentBit, distanceCode->numberValue, 5.0);
+      AppendBitsToBytesRight(bytes, currentBit, distanceAdditionReference->numberValue, distanceAdditionLengthReference->numberValue);
+      i = i + lengthReference->numberValue;
+    }
+  }
+
+  /* Stop symbol */
+  GetDeflateStaticHuffmanCode(256.0, code, length, bitReverseLookupTable);
+  AppendBitsToBytesRight(bytes, currentBit, code->numberValue, length->numberValue);
+
+  copy = (ByteArray *)calloc(sizeof(ByteArray), 1);
+  CopyByteArrayRange(bytes, 0.0, ceil(currentBit->numberValue/8.0), copy);
+  free(bytes);
+
+  return copy;
+}
+
+
+void FindMatch(ByteArray *data, double pos, NumberReference *distanceReference, NumberReference *lengthReference, BooleanReference *match, double level){
+  double i, j;
+  double deflateMinMength, deflateMaxLength, deflateMaxDistance;
+  double longest, maxLength, distanceForMax;
+  double startDistance, matchLength;
+  bool done;
+
+  deflateMinMength = 3.0;
+  deflateMaxLength = 258.0;
+
+  longest = fmin(pos - 1.0, deflateMaxLength);
+  longest = fmin(ByteArrayLength(data) - pos, longest);
+
+  deflateMaxDistance = floor(32768.0/10.0*level);
+
+  startDistance = fmin(pos, deflateMaxDistance);
+
+  if(longest >= deflateMinMength){
+    maxLength = 0.0;
+    distanceForMax = 0.0;
+
+    for(i = pos - 1.0; i >= pos - startDistance && maxLength != longest; i = i - 1.0){
+      matchLength = 0.0;
+      done = false;
+      for(j = 0.0; j < longest &&  !done ; j = j + 1.0){
+        if(GetByte(data, i + j) == GetByte(data, pos + j)){
+          matchLength = matchLength + 1.0;
+        }else{
+          done = true;
+        }
+      }
+
+      if(matchLength >= deflateMinMength && matchLength > maxLength){
+        maxLength = matchLength;
+        distanceForMax = pos - i;
+      }
+    }
+
+    if(maxLength >= deflateMinMength){
+      match->booleanValue = true;
+      lengthReference->numberValue = maxLength;
+      distanceReference->numberValue = distanceForMax;
+    }else{
+      match->booleanValue = false;
+    }
+  }else{
+    match->booleanValue = false;
+  }
+}
+
+
+double *GenerateBitReverseLookupTable(size_t *returnArrayLength, double bits){
+  double *table;
+  size_t tableLength;
+  double i;
+
+  table = (double*)calloc(sizeof(double) * (pow(2.0, bits)), 1);
+  tableLength = pow(2.0, bits);
+
+  for(i = 0.0; i < (double)tableLength; i = i + 1.0){
+    table[(int)(i)] = ReverseBits(i, 32.0);
+  }
+
+  *returnArrayLength = tableLength;
+  return table;
+}
+
+
+double ReverseBits(double x, double bits){
+  double b, bit, i;
+
+  b = 0.0;
+
+  for(i = 0.0; i < bits; i = i + 1.0){
+    b = ShiftLeft4Byte(b, 1.0);
+    bit = And4Byte(x, 1.0);
+    b = Or4Byte(b, bit);
+    x = ShiftRight4Byte(x, 1.0);
+  }
+
+  return b;
+}
+
+
+ByteArray *DeflateDataNoCompression(ByteArray *data){
+  ByteArray *deflated;
+  NumberReference *position;
+  double block, i, blocks, blocklength, maxblocksize;
+
+  maxblocksize = pow(2.0, 16.0) - 1.0;
+  blocks = ceil(ByteArrayLength(data)/maxblocksize);
+
+  position = CreateNumberReference(0.0);
+
+  deflated = CreateByteArray((1.0 + 4.0)*blocks + ByteArrayLength(data));
+
+  for(block = 0.0; block < blocks; block = block + 1.0){
+    if(block + 1.0 == blocks){
+      WriteByte(deflated, 1.0, position);
+    }else{
+      WriteByte(deflated, 0.0, position);
+    }
+    blocklength = fmin(ByteArrayLength(data) - block*maxblocksize, maxblocksize);
+    Write2BytesLE(deflated, blocklength, position);
+    Write2BytesLE(deflated, Not2Byte(blocklength), position);
+
+    for(i = 0.0; i < blocklength; i = i + 1.0){
+      WriteByte(deflated, GetByte(data, block*maxblocksize + i), position);
+    }
+  }
+
+  return deflated;
+}
+
+
+void GetDeflateLengthCode(double length, NumberReference *code, NumberReference *lengthAddition, NumberReference *lengthAdditionLength){
+  if(length >= 3.0 && length <= 10.0){
+    code->numberValue = 257.0 + length - 3.0;
+    lengthAdditionLength->numberValue = 0.0;
+  }else if(length >= 11.0 && length <= 18.0){
+    code->numberValue = 265.0 + floor((length - 11.0)/2.0);
+    lengthAddition->numberValue = floor(fmod(length - 11.0, 2.0));
+    lengthAdditionLength->numberValue = 1.0;
+  }else if(length >= 19.0 && length <= 34.0){
+    code->numberValue = 269.0 + floor((length - 19.0)/4.0);
+    lengthAddition->numberValue = floor(fmod(length - 19.0, 4.0));
+    lengthAdditionLength->numberValue = 2.0;
+  }else if(length >= 35.0 && length <= 66.0){
+    code->numberValue = 273.0 + floor((length - 35.0)/8.0);
+    lengthAddition->numberValue = floor(fmod(length - 35.0, 8.0));
+    lengthAdditionLength->numberValue = 3.0;
+  }else if(length >= 67.0 && length <= 130.0){
+    code->numberValue = 277.0 + floor((length - 67.0)/16.0);
+    lengthAddition->numberValue = floor(fmod(length - 67.0, 16.0));
+    lengthAdditionLength->numberValue = 4.0;
+  }else if(length >= 131.0 && length <= 257.0){
+    code->numberValue = 281.0 + floor((length - 131.0)/32.0);
+    lengthAddition->numberValue = floor(fmod(length - 131.0, 32.0));
+    lengthAdditionLength->numberValue = 5.0;
+  }else if(length == 258.0){
+    code->numberValue = 285.0;
+    lengthAdditionLength->numberValue = 0.0;
+  }
+}
+
+
 void AppendBitsToBytesLeft(ByteArray *bytes, NumberReference *nextbit, double data, double length){
   double bytePos, bitPos, segment, part, remove;
 
@@ -7993,37 +6440,37 @@ void AppendBitsToBytesLeft(ByteArray *bytes, NumberReference *nextbit, double da
 
 
 void AppendBitsToBytesRight(ByteArray *bytes, NumberReference *nextbit, double data, double length){
-  double bytePos, bitPos, segment, part;
-  double mask;
+    double bytePos, bitPos, segment, part;
+    double mask;
 
-  for(; length > 0.0; ){
-    bytePos = Truncate(nextbit->numberValue/8.0);
-    bitPos = fmod(nextbit->numberValue, 8.0);
+    for(; length > 0.0; ) {
+        bytePos = Truncate(nextbit->numberValue/8.0);
+        bitPos = fmod(nextbit->numberValue, 8.0);
 
-    if(length < 8.0 - bitPos){
-      part = ShiftLeft4Byte(data, bitPos);
+        if(length < 8.0 - bitPos){
+            part = ShiftLeft4Byte(data, bitPos);
 
-      SetByte(bytes, bytePos, Or4Byte(GetByte(bytes, bytePos), part));
+            SetByte(bytes, bytePos, Or4Byte(GetByte(bytes, bytePos), part));
 
-      nextbit->numberValue = nextbit->numberValue + length;
+            nextbit->numberValue = nextbit->numberValue + length;
+            length = 0.0;
+        } else {
+            segment = 8.0 - bitPos;
 
-      length = 0.0;
-    }else{
-      segment = 8.0 - bitPos;
+            mask = 1.0;
+            mask = ShiftLeft4Byte(mask, segment);
+            mask = mask - 1.0;
 
-      mask = 1.0;
-      mask = ShiftLeft4Byte(mask, segment);
-      mask = mask - 1.0;
+            part = And4Byte(mask, data);
+            part = ShiftLeft4Byte(part, bitPos);
+            SetByte(bytes, bytePos, Or4Byte(GetByte(bytes, bytePos), part));
+            nextbit->numberValue = nextbit->numberValue + segment;
 
-      part = And4Byte(mask, data);
-      part = ShiftLeft4Byte(part, bitPos);
-      SetByte(bytes, bytePos, Or4Byte(GetByte(bytes, bytePos), part));
-      nextbit->numberValue = nextbit->numberValue + segment;
-
-      data = ShiftRight4Byte(data, segment);
-
-      length = length - segment;
+            data = ShiftRight4Byte(data, segment);
+            length = length - segment;
+        }
     }
-  }
 }
+
+
 

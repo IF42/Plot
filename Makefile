@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -Ofast
-LIBS = $$(pkg-config --libs openssl) -lxtblib -lm -lthr -ljson
+CFLAGS = -Wall -Wextra -Ofast 
+LIBS = $$(pkg-config --libs openssl) -lm -lthr -ljson 
 
 
 TARGET = libplot.a
@@ -49,7 +49,7 @@ env:
 
 install:
 	cp -v $(OUTPUT)/$(TARGET) $(LIB_PATH)/$(TARGET)
-	cp -v src/xtblib.h $(INCLUDE_PATH)/xtblib.h
+	cp -v src/plot.h $(INCLUDE_PATH)/plot.h
 
 
 clean: 

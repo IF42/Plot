@@ -45,13 +45,32 @@ typedef struct RGBA
 }RGBA;
 
 
+typedef enum {
+    Plot_LineType_Solid
+    , Plot_LineType_Dashed
+    , Plot_LineType_Dotted
+    , Plot_LineType_Dotdash
+    , Plot_LineType_Longdash
+    , Plot_LineType_Twodash
+}Plot_LineType;
+
+
+typedef enum {
+    Plot_PointType_Crosses
+    , Plot_PointType_Circles
+    , Plot_PointType_Dots
+    , Plot_PointType_Triangles
+    , Plot_PointType_FilledTriangles
+    , Plot_PointType_Pixels
+    , Plot_PointType_DotlineToXAxis
+}Plot_PointType;
+
+
 typedef struct ScatterPlotSeries
 {
   bool linearInterpolation;
-  char *pointType;
-  size_t pointTypeLength;
-  char *lineType;
-  size_t lineTypeLength;
+  Plot_PointType pointType;
+  Plot_LineType lineType; 
   double lineThickness;
   double *xs;
   size_t xsLength;
@@ -63,7 +82,7 @@ typedef struct ScatterPlotSeries
 
 typedef struct ScatterPlotSettings
 {
-  ScatterPlotSeries **scatterPlotSeries;
+  ScatterPlotSeries *scatterPlotSeries;
   size_t scatterPlotSeriesLength;
   bool autoBoundaries;
   double xMax;
@@ -74,11 +93,8 @@ typedef struct ScatterPlotSettings
   double xPadding;
   double yPadding;
   char *xLabel;
-  size_t xLabelLength;
   char *yLabel;
-  size_t yLabelLength;
   char *title;
-  size_t titleLength;
   bool showGrid;
   RGBA *gridColor;
   bool xAxisAuto;
@@ -118,20 +134,18 @@ typedef struct BarPlotSettings
   double xPadding;
   double yPadding;
   char *title;
-  size_t titleLength;
   bool showGrid;
   RGBA *gridColor;
-  BarPlotSeries **barPlotSeries;
+  BarPlotSeries *barPlotSeries;
   size_t barPlotSeriesLength;
   char *yLabel;
-  size_t yLabelLength;
   bool autoColor;
   bool grayscaleAutoColor;
   bool autoSpacing;
   double groupSeparation;
   double barSeparation;
   bool autoLabels;
-  StringReference **xLabels;
+  char ** xLabels;
   size_t xLabelsLength;
   bool barBorder;
 }BarPlotSettings;
@@ -309,14 +323,11 @@ typedef struct ByteArrayReference
 
 bool Loess(double *xs, size_t xsLength, double *ys, size_t ysLength, double bandwidth, double robustnessIters, double accuracy, NumberArrayReference *resultXs);
 bool Lowess(double *xs, size_t xsLength, double *ys, size_t ysLength, double *weights, size_t weightsLength, double bandwidth, double robustnessIters, double accuracy, NumberArrayReference *resultXs);
-void RearrangeArray(double *as, size_t asLength, double *indexes, size_t indexesLength);
 void AssignNumberArray(double *as, size_t asLength, double *bs, size_t bsLength);
 double FindNextNonZeroElement(double *array, size_t arrayLength, double offset);
 double Tricube(double x);
 
 bool CropLineWithinBoundary(NumberReference *x1Ref, NumberReference *y1Ref, NumberReference *x2Ref, NumberReference *y2Ref, double xMin, double xMax, double yMin, double yMax);
-double IncrementFromCoordinates(double x1, double y1, double x2, double y2);
-double InterceptFromCoordinates(double x1, double y1, double x2, double y2);
 
 RGBA **Get8HighContrastColors(size_t *returnArrayLength);
 
@@ -327,8 +338,8 @@ bool RectanglesOverlap(Rectangle *r1, Rectangle *r2);
 Rectangle *CreateRectangle(double x1, double y1, double x2, double y2);
 void CopyRectangleValues(Rectangle *rd, Rectangle *rs);
 
-void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, double xPixelMin, double xPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *xGridPositions, size_t xGridPositionsLength, StringArrayReference *xLabels, NumberArrayReference *xLabelPriorities, Rectangle **occupied, size_t occupiedLength, bool textOnBottom);
-void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, double yPixelMin, double yPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *yGridPositions, size_t yGridPositionsLength, StringArrayReference *yLabels, NumberArrayReference *yLabelPriorities, Rectangle **occupied, size_t occupiedLength, bool textOnLeft);
+void DrawXLabelsForPriority(double p, double xMin, double oy, double xMax, double xPixelMin, double xPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *xGridPositions, size_t xGridPositionsLength, StringArrayReference *xLabels, NumberArrayReference *xLabelPriorities, Rectangle **occupied, bool textOnBottom);
+void DrawYLabelsForPriority(double p, double yMin, double ox, double yMax, double yPixelMin, double yPixelMax, NumberReference *nextRectangle, RGBA *gridLabelColor, RGBABitmapImage *canvas, double *yGridPositions, size_t yGridPositionsLength, StringArrayReference *yLabels, NumberArrayReference *yLabelPriorities, Rectangle **occupied, bool textOnLeft);
 double *ComputeGridLinePositions(size_t *returnArrayLength, double cMin, double cMax, StringArrayReference *labels, NumberArrayReference *priorities);
 double MapYCoordinate(double y, double yMin, double yMax, double yPixelMin, double yPixelMax);
 double MapXCoordinate(double x, double xMin, double xMax, double xPixelMin, double xPixelMax);
@@ -338,31 +349,97 @@ double MapXCoordinateBasedOnSettings(double x, ScatterPlotSettings *settings);
 double MapYCoordinateBasedOnSettings(double y, ScatterPlotSettings *settings);
 double GetDefaultPaddingPercentage();
 
-void DrawText(RGBABitmapImage *canvas, double x, double y, char *text, size_t textLength, RGBA *color);
+void DrawText(RGBABitmapImage *canvas, double x, double y, char *text, RGBA *color);
 void DrawTextUpwards(RGBABitmapImage *canvas, double x, double y, char *text, size_t textLength, RGBA *color);
 
-ScatterPlotSettings *GetDefaultScatterPlotSettings();
-ScatterPlotSeries *GetDefaultScatterPlotSeriesSettings();
+
+#define GetDefaultScatterPlotSettings()              \
+    (ScatterPlotSettings) {                          \
+          .autoBoundaries = true                     \
+          , .xMax = 0.0                              \
+          , .xMin = 0.0                              \
+          , .yMax = 0.0                              \
+          , .yMin = 0.0                              \
+          , .autoPadding = true                      \
+          , .xPadding = 0.0                          \
+          , .yPadding = 0.0                          \
+          , .title = ""                              \
+          , .xLabel = ""                             \
+          , .yLabel = ""                             \
+          , .scatterPlotSeries = NULL                \
+          , .scatterPlotSeriesLength = 0.0           \
+          , .showGrid = true                         \
+          , .gridColor = GetGray(0.1)                \
+          , .xAxisAuto = true                        \
+          , .xAxisTop = false                        \
+          , .xAxisBottom = false                     \
+          , .yAxisAuto = true                        \
+          , .yAxisLeft = false                       \
+          , .yAxisRight = false}
+
+
+#define GetDefaultScatterPlotSeriesSettings()       \
+    (ScatterPlotSeries) {                           \
+          .linearInterpolation = true               \
+          , .pointType = Plot_PointType_Pixels      \
+          , .lineType = Plot_LineType_Solid         \
+          , .lineThickness = 1.0                    \
+          , .xs = NULL                              \
+          , .xsLength = 0.0                         \
+          , .ys = NULL                              \
+          , .ysLength = 0.0                         \
+          , .color = GetBlack()}
+
+
 bool DrawScatterPlot(RGBABitmapImageReference *canvasReference, double width, double height, double *xs, size_t xsLength, double *ys, size_t ysLength);
 bool DrawScatterPlotFromSettings(RGBABitmapImageReference *canvasReference, ScatterPlotSettings *settings);
 void ComputeBoundariesBasedOnSettings(ScatterPlotSettings *settings, Rectangle *boundaries);
 bool ScatterPlotFromSettingsValid(ScatterPlotSettings *settings);
 
-BarPlotSettings *GetDefaultBarPlotSettings();
-BarPlotSeries *GetDefaultBarPlotSeriesSettings();
+
+#define GetDefaultBarPlotSettings()             \
+    (BarPlotSettings) {                         \
+      .width = 800.0                            \
+      , .height = 600.0                         \
+      , .autoBoundaries = true                  \
+      , .yMax = 0.0                             \
+      , .yMin = 0.0                             \
+      , .autoPadding = true                     \
+      , .xPadding = 0.0                         \
+      , .yPadding = 0.0                         \
+      , .title = ""                             \
+      , .yLabel = ""                            \
+      , .barPlotSeries = NULL                   \
+      , .barPlotSeriesLength = 0.0              \
+      , .showGrid = true                        \
+      , .gridColor = GetGray(0.1)               \
+      , .autoColor = true                       \
+      , .grayscaleAutoColor = false             \
+      , .autoSpacing = true                     \
+      , .groupSeparation = 0.0                  \
+      , .barSeparation = 0.0                    \
+      , .autoLabels = true                      \
+      , .xLabels = NULL                         \
+      , .xLabelsLength = 0.0                    \
+      , .barBorder = false}
+
+
+#define GetDefaultBarPlotSeriesSettings()       \
+    (BarPlotSeries) {                           \
+        .ys  = NULL                             \
+        , .ysLength = 0.0                       \
+        , .color = GetBlack()}
+
+
 RGBABitmapImage *DrawBarPlotNoErrorCheck(double width, double height, double *ys, size_t ysLength);
-bool DrawBarPlot(RGBABitmapImageReference *canvasReference, double width, double height, double *ys, size_t ysLength, StringReference *errorMessage);
-bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotSettings *settings, StringReference *errorMessage);
-bool BarPlotSettingsIsValid(BarPlotSettings *settings, StringReference *errorMessage);
+bool DrawBarPlot(RGBABitmapImageReference *canvasReference, double width, double height, double *ys, size_t ysLength);
+bool DrawBarPlotFromSettings(RGBABitmapImageReference *canvasReference, BarPlotSettings *settings);
+bool BarPlotSettingsIsValid(BarPlotSettings *settings);
 
 double GetMinimum(double *data, size_t dataLength);
 double GetMaximum(double *data, size_t dataLength);
 
 double RoundToDigits(double element, double digitsAfterPoint);
-
-void ExampleRegression(RGBABitmapImageReference *image);
-void ExampleRegression2(RGBABitmapImageReference *image);
-void BarPlotExample(RGBABitmapImageReference *imageReference);
 
 RGBA *GetBlack();
 RGBA *GetWhite();
@@ -421,100 +498,24 @@ bool *GetLinePattern1(size_t *returnArrayLength);
 RGBABitmapImage *Blur(RGBABitmapImage *src, double pixels);
 RGBA *CreateBlurForPoint(RGBABitmapImage *src, double x, double y, double pixels);
 
-char *CreateStringScientificNotationDecimalFromNumber(size_t *returnArrayLength, double decimal);
 char *CreateStringDecimalFromNumber(size_t *returnArrayLength, double decimal);
-bool CreateStringFromNumberWithCheck(double decimal, double base, StringReference *stringReference);
-double GetMaximumDigitsForBase(double base);
-double GetFirstDigitPosition(double decimal, double base);
-bool GetSingleDigitCharacterFromNumberWithCheck(double c, double base, CharacterReference *characterReference);
 char *GetDigitCharacterTable(size_t *returnArrayLength);
 
-bool CreateNumberFromDecimalStringWithCheck(char *string, size_t stringLength, NumberReference *decimalReference, StringReference *errorMessage);
+bool CreateNumberFromDecimalStringWithCheck(char *string, size_t stringLength, NumberReference *decimalReference);
 double CreateNumberFromDecimalString(char *string, size_t stringLength);
-bool CreateNumberFromStringWithCheck(char *string, size_t stringLength, double base, NumberReference *numberReference, StringReference *errorMessage);
+bool CreateNumberFromStringWithCheck(char *string, size_t stringLength, double base, NumberReference *numberReference);
 double CreateNumberFromParts(double base, bool numberIsPositive, double *beforePoint, size_t beforePointLength, double *afterPoint, size_t afterPointLength, bool exponentIsPositive, double *exponent, size_t exponentLength);
-bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanReference *numberIsPositive, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent, StringReference *errorMessages);
+bool ExtractPartsFromNumberString(char *n, size_t nLength, double base, BooleanReference *numberIsPositive, NumberArrayReference *beforePoint, NumberArrayReference *afterPoint, BooleanReference *exponentIsPositive, NumberArrayReference *exponent);
 double GetNumberFromNumberCharacterForBase(char c, double base);
 bool CharacterIsNumberCharacterInBase(char c, double base);
 double *StringToNumberArray(size_t *returnArrayLength, char *str, size_t strLength);
-bool StringToNumberArrayWithCheck(char *str, size_t strLength, NumberArrayReference *numberArrayReference, StringReference *errorMessage);
-
-void QuickSortStrings(StringArrayReference *list);
-void QuickSortStringsBounds(StringArrayReference *A, double lo, double hi);
-double QuickSortStringsPartition(StringArrayReference *A, double lo, double hi);
-double *QuickSortStringsWithIndexes(size_t *returnArrayLength, StringArrayReference *A);
-void QuickSortStringsBoundsWithIndexes(StringArrayReference *A, double *indexes, size_t indexesLength, double lo, double hi);
-double QuickSortStringsPartitionWithIndexes(StringArrayReference *A, double *indexes, size_t indexesLength, double lo, double hi);
+bool StringToNumberArrayWithCheck(char *str, size_t strLength, NumberArrayReference *numberArrayReference);
 
 void QuickSortNumbers(double *list, size_t listLength);
 void QuickSortNumbersBounds(double *A, size_t ALength, double lo, double hi);
-double QuickSortNumbersPartition(double *A, size_t ALength, double lo, double hi);
 double *QuickSortNumbersWithIndexes(size_t *returnArrayLength, double *A, size_t ALength);
 void QuickSortNumbersBoundsWithIndexes(double *A, size_t ALength, double *indexes, size_t indexesLength, double lo, double hi);
-double QuickSortNumbersPartitionWithIndexes(double *A, size_t ALength, double *indexes, size_t indexesLength, double lo, double hi);
 
-//what is this??? whate about math.h???
-
-double Negate(double x);
-double Positive(double x);
-double Factorial(double x);
-double Round(double x);
-double BankersRound(double x);
-double Ceil(double x);
-double Floor(double x);
-double Truncate(double x);
-double Absolute(double x);
-double Logarithm(double x);
-double NaturalLogarithm(double x);
-double Sin(double x);
-double Cos(double x);
-double Tan(double x);
-double Asin(double x);
-double Acos(double x);
-double Atan(double x);
-double Atan2(double y, double x);
-double Squareroot(double x);
-double Exp(double x);
-bool DivisibleBy(double a, double b);
-double Combinations(double n, double k);
-double Permutations(double n, double k);
-bool EpsilonCompare(double a, double b, double epsilon);
-double GreatestCommonDivisor(double a, double b);
-double GCDWithSubtraction(double a, double b);
-bool IsInteger(double a);
-bool GreatestCommonDivisorWithCheck(double a, double b, NumberReference *gcdReference);
-double LeastCommonMultiple(double a, double b);
-double Sign(double a);
-double Max(double a, double b);
-double Min(double a, double b);
-double Power(double a, double b);
-double Gamma(double x);
-double LogGamma(double x);
-double LanczosApproximation(double z);
-double Beta(double x, double y);
-double Sinh(double x);
-double Cosh(double x);
-double Tanh(double x);
-double Cot(double x);
-double Sec(double x);
-double Csc(double x);
-double Coth(double x);
-double Sech(double x);
-double Csch(double x);
-double Error(double x);
-double ErrorInverse(double x);
-double FallingFactorial(double x, double n);
-double RisingFactorial(double x, double n);
-double Hypergeometric(double a, double b, double c, double z, double maxIterations, double precision);
-double HypergeometricDirect(double a, double b, double c, double z, double maxIterations, double precision);
-double BernouilliNumber(double n);
-double AkiyamaTanigawaAlgorithm(double n);
-
-double *aStringToNumberArray(size_t *returnArrayLength, char *string, size_t stringLength);
-char *aNumberArrayToString(size_t *returnArrayLength, double *array, size_t arrayLength);
-bool aNumberArraysEqual(double *a, size_t aLength, double *b, size_t bLength);
-bool aBooleanArraysEqual(bool *a, size_t aLength, bool *b, size_t bLength);
-bool aStringsEqual(char *a, size_t aLength, char *b, size_t bLength);
 void aFillNumberArray(double *a, size_t aLength, double value);
 void aFillString(char *a, size_t aLength, char value);
 void aFillBooleanArray(bool *a, size_t aLength, bool value);
@@ -527,17 +528,10 @@ char *aCopyString(size_t *returnArrayLength, char *a, size_t aLength);
 bool aCopyNumberArrayRange(double *a, size_t aLength, double from, double to, NumberArrayReference *copyReference);
 bool aCopyBooleanArrayRange(bool *a, size_t aLength, double from, double to, BooleanArrayReference *copyReference);
 bool aCopyStringRange(char *a, size_t aLength, double from, double to, StringReference *copyReference);
-bool aIsLastElement(double length, double index);
-double *aCreateNumberArray(size_t *returnArrayLength, double length, double value);
-bool *aCreateBooleanArray(size_t *returnArrayLength, double length, bool value);
-char *aCreateString(size_t *returnArrayLength, double length, char value);
-void aSwapElementsOfNumberArray(double *A, size_t ALength, double ai, double bi);
 void aSwapElementsOfStringArray(StringArrayReference *A, double ai, double bi);
-void aReverseNumberArray(double *array, size_t arrayLength);
 
 
 BooleanReference *CreateBooleanReference(bool value);
-BooleanArrayReference *CreateBooleanArrayReference(bool *value, size_t valueLength);
 BooleanArrayReference *CreateBooleanArrayReferenceLengthValue(double length, bool value);
 void FreeBooleanArrayReference(BooleanArrayReference *booleanArrayReference);
 CharacterReference *CreateCharacterReference(char value);
@@ -557,8 +551,9 @@ void DrawDigitCharacter(RGBABitmapImage *image, double topx, double topy, double
 
 char *GetPixelFontData(size_t *returnArrayLength);
 void DrawAsciiCharacter(RGBABitmapImage *image, double topx, double topy, char a, RGBA *color);
-double GetTextWidth(char *text, size_t textLength);
-double GetTextHeight(char *text, size_t textLength);
+
+double GetTextWidth(size_t textLength);
+#define GetTextHeight 13.0
 
 ByteArray *ConvertToPNG(RGBABitmapImage *image);
 ByteArray *ConvertToPNGGrayscale(RGBABitmapImage *image);
@@ -576,40 +571,24 @@ bool PNGReadHeader(RGBABitmapImage *image, Chunk **cs, size_t csLength, StringRe
 Chunk **PNGReadChunks(size_t *returnArrayLength, ByteArray *data, NumberReference *position);
 Chunk *PNGReadChunk(ByteArray *data, NumberReference *position);
 
-void WriteStringToStingStream(char *stream, size_t streamLength, NumberReference *index, char *src, size_t srcLength);
-void WriteCharacterToStingStream(char *stream, size_t streamLength, NumberReference *index, char src);
-void WriteBooleanToStingStream(char *stream, size_t streamLength, NumberReference *index, bool src);
+void WriteStringToStingStream(char *stream, NumberReference *index, char *src, size_t srcLength);
+void WriteCharacterToStingStream(char *stream, NumberReference *index, char src);
+void WriteBooleanToStingStream(char *stream, NumberReference *index, bool src);
 
 bool SubstringWithCheck(char *string, size_t stringLength, double from, double to, StringReference *stringReference);
-char *Substring(size_t *returnArrayLength, char *string, size_t stringLength, double from, double to);
 char *AppendString(size_t *returnArrayLength, char *s1, size_t s1Length, char *s2, size_t s2Length);
 char *ConcatenateString(size_t *returnArrayLength, char *s1, size_t s1Length, char *s2, size_t s2Length);
 char *AppendCharacter(size_t *returnArrayLength, char *string, size_t stringLength, char c);
 char *ConcatenateCharacter(size_t *returnArrayLength, char *string, size_t stringLength, char c);
-StringReference **SplitByCharacter(size_t *returnArrayLength, char *toSplit, size_t toSplitLength, char splitBy);
-bool IndexOfCharacter(char *string, size_t stringLength, char character, NumberReference *indexReference);
 bool SubstringEqualsWithCheck(char *string, size_t stringLength, double from, char *substring, size_t substringLength, BooleanReference *equalsReference);
 bool SubstringEquals(char *string, size_t stringLength, double from, char *substring, size_t substringLength);
-bool IndexOfString(char *string, size_t stringLength, char *substring, size_t substringLength, NumberReference *indexReference);
-bool ContainsCharacter(char *string, size_t stringLength, char character);
-bool ContainsString(char *string, size_t stringLength, char *substring, size_t substringLength);
 void ToUpperCase(char *string, size_t stringLength);
 void ToLowerCase(char *string, size_t stringLength);
-bool EqualsIgnoreCase(char *a, size_t aLength, char *b, size_t bLength);
-char *ReplaceString(size_t *returnArrayLength, char *string, size_t stringLength, char *toReplace, size_t toReplaceLength, char *replaceWith, size_t replaceWithLength);
-char *ReplaceCharacterToNew(size_t *returnArrayLength, char *string, size_t stringLength, char toReplace, char replaceWith);
-void ReplaceCharacter(char *string, size_t stringLength, char toReplace, char replaceWith);
 char *Trim(size_t *returnArrayLength, char *string, size_t stringLength);
-bool StartsWith(char *string, size_t stringLength, char *start, size_t startLength);
 bool EndsWith(char *string, size_t stringLength, char *end, size_t endLength);
 StringReference **SplitByString(size_t *returnArrayLength, char *toSplit, size_t toSplitLength, char *splitBy, size_t splitByLength);
 bool StringIsBefore(char *a, size_t aLength, char *b, size_t bLength);
 
-double *AddNumber(size_t *returnArrayLength, double *list, size_t listLength, double a);
-void AddNumberRef(NumberArrayReference *list, double i);
-double *RemoveNumber(size_t *returnArrayLength, double *list, size_t listLength, double n);
-double GetNumberRef(NumberArrayReference *list, double i);
-void RemoveNumberRef(NumberArrayReference *list, double i);
 
 StringReference **AddString(size_t *returnArrayLength, StringReference **list, size_t listLength, StringReference *a);
 void AddStringRef(StringArrayReference *list, StringReference *i);
@@ -672,8 +651,6 @@ double LinkedListCharactersLength(LinkedListCharacters *ll);
 void FreeLinkedListCharacter(LinkedListCharacters *ll);
 void LinkedListCharactersAddString(LinkedListCharacters *ll, char *str, size_t strLength);
 
-
-
 DynamicArrayNumbers *CreateDynamicArrayNumbers();
 DynamicArrayNumbers *CreateDynamicArrayNumbersWithInitialCapacity(double capacity);
 void DynamicArrayAddNumber(DynamicArrayNumbers *da, double value);
@@ -728,72 +705,24 @@ bool CopyByteArrayRange(ByteArray *a, double from, double to, ByteArray *b);
 
 char *BytesToTextBase16(size_t *returnArrayLength, double *bytes, size_t bytesLength);
 double *TextToBytesBase16(size_t *returnArrayLength, char *string, size_t stringLength);
-void FreeBase64ByteCombinations(StringReference **comb, size_t combLength);
 StringReference **GenerateBase16ByteCombinations(size_t *returnArrayLength);
 
 double *MakeCRC32Table(size_t *returnArrayLength);
-double UpdateCRC32(double crc, ByteArray *buf, double *crc_table, size_t crc_tableLength);
 double CalculateCRC32(ByteArray *buf);
 double CRC32OfInterval(ByteArray *data, double from, double length);
 
 ZLIBStruct *ZLibCompressNoCompression(ByteArray *data);
 ZLIBStruct *ZLibCompressStaticHuffman(ByteArray *data, double level);
 
-//this is also part of ctypes.h
-char charToLowerCase(char character);
-char charToUpperCase(char character);
-bool charIsUpperCase(char character);
-bool charIsLowerCase(char character);
-bool charIsLetter(char character);
-bool charIsNumber(char character);
-bool charIsWhiteSpace(char character);
-bool charIsSymbol(char character);
-bool charCharacterIsBefore(char a, char b);
-char charDecimalDigitToCharacter(double digit);
-double charCharacterToDecimalDigit(char c);
 
 double And4Byte(double n1, double n2);
-double And2Byte(double n1, double n2);
-double AndByte(double n1, double n2);
-double AndBytes(double n1, double n2, double bytes);
 double Or4Byte(double n1, double n2);
-double Or2Byte(double n1, double n2);
-double OrByte(double n1, double n2);
-double OrBytes(double n1, double n2, double bytes);
 double Xor4Byte(double n1, double n2);
-double Xor2Byte(double n1, double n2);
-double XorByte(double n1, double n2);
-double XorBytes(double n1, double n2, double bytes);
-double Not4Byte(double b);
 double Not2Byte(double b);
-double NotByte(double b);
-double NotBytes(double b, double length);
 double ShiftLeft4Byte(double b, double amount);
-double ShiftLeft2Byte(double b, double amount);
 double ShiftLeftByte(double b, double amount);
-double ShiftLeftBytes(double b, double amount, double length);
 double ShiftRight4Byte(double b, double amount);
-double ShiftRight2Byte(double b, double amount);
-double ShiftRightByte(double b, double amount);
-double ShiftRightBytes(double b, double amount, double length);
-double RotateLeft4Byte(double w, double n);
-double RotateRight4Bytes(double w, double n);
 
-bool *CreateBooleanArrayFromNumber(size_t *returnArrayLength, double w, double size);
-double BooleanArrayToNumber(bool *bits, size_t bitsLength);
-bool *BooleanAnd(size_t *returnArrayLength, bool *a, size_t aLength, bool *b, size_t bLength);
-bool *BooleanXor(size_t *returnArrayLength, bool *a, size_t aLength, bool *b, size_t bLength);
-bool *BooleanNot(size_t *returnArrayLength, bool *a, size_t aLength);
-bool *ShiftBitsRight4Byte(size_t *returnArrayLength, bool *w, size_t wLength, double n);
-
-double ReadNextBit(double *data, size_t dataLength, NumberReference *nextbit);
-double BitExtract(double b, double fromInc, double toInc);
-double ReadBitRange(double *data, size_t dataLength, NumberReference *nextbit, double length);
-void SkipToBoundary(NumberReference *nextbit);
-double ReadNextByteBoundary(double *data, size_t dataLength, NumberReference *nextbit);
-double Read2bytesByteBoundary(double *data, size_t dataLength, NumberReference *nextbit);
-
-double ComputeAdler32(ByteArray *data);
 
 ByteArray *Pack(ByteArray *data, double level);
 ByteArray *Unpack(ByteArray *data);
@@ -803,8 +732,11 @@ void FindMatch(ByteArray *data, double pos, NumberReference *distanceReference, 
 double *GenerateBitReverseLookupTable(size_t *returnArrayLength, double bits);
 double ReverseBits(double x, double bits);
 ByteArray *DeflateDataNoCompression(ByteArray *data);
-void GetDeflateStaticHuffmanCode(double b, NumberReference *code, NumberReference *length, double *bitReverseLookupTable, size_t bitReverseLookupTableLength);
 void GetDeflateLengthCode(double length, NumberReference *code, NumberReference *lengthAddition, NumberReference *lengthAdditionLength);
-void GetDeflateDistanceCode(double distance, NumberReference *code, NumberReference *distanceAdditionReference, NumberReference *distanceAdditionLengthReference, double *bitReverseLookupTable, size_t bitReverseLookupTableLength);
 void AppendBitsToBytesLeft(ByteArray *bytes, NumberReference *nextbit, double data, double length);
 void AppendBitsToBytesRight(ByteArray *bytes, NumberReference *nextbit, double data, double length);
+
+
+
+
+
