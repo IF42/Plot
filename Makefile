@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Ofast 
+CFLAGS = -Wall -Wextra -pedantic -Ofast 
 LIBS = $$(pkg-config --libs openssl) -lm -lthr -ljson 
 
 
@@ -54,6 +54,6 @@ install:
 
 clean: 
 	rm -rvf $(CACHE)
-
+	rm -vf plot.png
 
 
