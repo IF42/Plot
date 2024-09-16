@@ -11,8 +11,19 @@ TARGET = libplot.a
 CACHE = .cache
 OUTPUT = $(CACHE)/release
 
-INCLUDE_PATH = /usr/include
-LIB_PATH = /usr/lib64
+
+INCLUDE_PATH=
+LIB_PATH=
+
+
+ifeq ($(UNAME), Linux)	
+	INCLUDE_PATH+=/usr/include/
+	LIB_PATH+=/usr/lib64/
+else
+	INCLUDE_PATH+=/usr/include/
+	LIB_PATH+=/usr/lib/
+endif
+
 
 MODULES += plot.o
 
