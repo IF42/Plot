@@ -4,8 +4,12 @@
 #include <json.h>
 #include <throw.h>
 #include <math.h>
+#include <cca/list.h>
+#include <alloc/alloc.h>
 
 #include "../src/plot.h"
+
+
 
 
 #pragma pack(push, 1)
@@ -66,52 +70,30 @@ bool write_as_bmp(Plot * image, char * path) {
 
 
 typedef struct {
-    size_t size;
-    double * x;
-    double * y;
-} Batch;
-
-
-Batch batch_init(size_t size) {
-    return (Batch) {size, malloc(sizeof(double) * size), malloc(sizeof(double) * size)};
-}
-
-void batch_delete(Batch * self) {
-    if(self != NULL) {
-        if(self->x != NULL)
-            free(self->x);
-
-        if(self->y != NULL)
-            free(self->y);
-    }
-}
-
-
-typedef struct {
     bool is_value;
-    Batch value;
+    List value;
 }O_Batch; 
 
 
-O_Batch __filter_batch(Json * json, char * key) {
-    Batch record = batch_init(json->array.size);
+O_Batch __filter_batch(Json * json, Alloc * alloc, char * key) {
+    List record = list(alloc, sizeof(double));
 
     for(size_t i = 0; i < json->array.size; i++) {
         if(json_is_type(json_lookup(json->array.value[i], key), JsonFrac) == false) {
             debug("json dataset format error\n");
-            batch_delete(&record);
+            list_finalize(&record);
             return (O_Batch) {.is_value = false};
         }
 
-        record.y[i] = atof(json_lookup(json->array.value[i], key)->string);
-        record.x[i] = i; 
+
+        list_push_back(&record, (double[]) {atof(json_lookup(json->array.value[i], key)->string)});
     }
 
     return (O_Batch) {.is_value = true, .value = record};
 }
 
 
-O_Batch __load_price_batch(char * filename) {
+O_Batch __load_price_batch(char * filename, Alloc * alloc) {
     FILE * f = fopen(filename, "r");
 
     if(f == NULL) {
@@ -126,7 +108,7 @@ O_Batch __load_price_batch(char * filename) {
         return (O_Batch) {.is_value = false};
     }
 
-	O_Batch record = __filter_batch(json, "open");
+	O_Batch record = __filter_batch(json, alloc, "open");
 
     json_delete(json);
 
@@ -153,33 +135,35 @@ Json * __load_dataset(char * filename) {
 
 
 bool __show_candle_chart(void) {
+    SysAlloc alloc = sys_alloc();
 	Json * json = __load_dataset("dataset/BITCOIN_M1_500.json");
 
     if(json == NULL) {
         return false;
     }
 
-	O_Batch batch_open = __filter_batch(json, "high");
-	O_Batch batch_close = __filter_batch(json, "low");
+	O_Batch batch_open = __filter_batch(json, ALLOC(&alloc), "high");
+	O_Batch batch_close = __filter_batch(json, ALLOC(&alloc), "low");
 
     if(batch_open.is_value == false || batch_close.is_value == false) {
         return true;
 	}
 
+    Range range_open = range(0, list_size(&batch_open.value), 1);
+    Range range_close = range(0, list_size(&batch_close.value), 1);
+
     ScatterPlot_Series serie_open = {
         .line_type = Plot_LineType_Solid
-        , .size = batch_open.value.size
-        , .xs = batch_open.value.x
-        , .ys = batch_open.value.y
+        , .xs = range_to_vector(&range_open)  
+        , .ys = list_to_vector(&batch_open.value)
         , .legenda = "High price" 
         , .line_thickness = 1
         , .color = RGBA(.R=0xFF, .G=0x00, .B=0x20, .A=0xF0)};
 
     ScatterPlot_Series serie_close = {
         .line_type = Plot_LineType_Solid
-        , .size = batch_close.value.size
-        , .xs = batch_close.value.x
-        , .ys = batch_close.value.y
+        , .xs = range_to_vector(&range_close)
+        , .ys = list_to_vector(&batch_close.value) 
         , .legenda = "Low price" 
         , .line_thickness = 1
         , .color = RGBA(.R=0x00, .G=0xFF, .B=0x20, .A=0xF0)};
@@ -209,9 +193,8 @@ bool __show_candle_chart(void) {
         printf("error in chart rendering\n");
     }
 
-	batch_delete(&batch_open.value);
-	batch_delete(&batch_close.value);
     json_delete(json);
+    finalize(ALLOC(&alloc));
 
     return true;
 }

@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <interface/vector.h>
 
 
 typedef union {
@@ -46,9 +47,8 @@ typedef struct
     char * legenda;
     Plot_LineType line_type; 
     double line_thickness;
-    size_t size;
-    double * xs;
-    double * ys;
+    const vector * xs;
+    const vector * ys;
     RGBA color;
 }ScatterPlot_Series;
 
@@ -89,11 +89,27 @@ typedef struct {
 }ScatterPlot_Settings;
 
 
-Plot * scatter_plot_draw(size_t size, double * xs, double * ys);
+Plot * scatter_plot_draw(const vector * xs, const vector * ys);
 Plot * scatter_plot_draw_from_settings(ScatterPlot_Settings * settings);
 
 
 void plot_delete(Plot * self);
+
+
+typedef struct {
+    vector vector;
+    double start;
+    double end;
+    double step;
+    double value;
+    double iterator;
+}Range;
+
+
+Range range(double start, double end, double step);
+
+
+#define range_to_vector(T) _Generic((T), Range*: ((const vector*) (T)))
 
 
 #endif

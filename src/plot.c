@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
+
 
 
 static Plot * __plot_new(size_t width, size_t height, RGBA * color) {
@@ -584,23 +586,16 @@ static size_t __text_width(char * cstr) {
 }
 
 
-static double __minimum(size_t size, double * data){
-    double min = data[0];
+static double vector_filter(const vector * data, double(*f)(double, double)) {
+    vector_reset_iterator(data);
 
-    for(size_t i = 1; i < size; i++)
-        min = fmin(min, data[i]);
+    double result = *(double*) vector_next(data);
 
-    return min;
-}
+    foreach(data, i) {
+		result = f(result, *(double*) i);
+    }
 
-
-static double __maximum(size_t size, double * data){
-	double max = data[0];
-
-	for(size_t i = 1; i < size; i++)
-		max = fmax(max, data[i]);
-
-	return max;
+    return result;
 }
 
 
@@ -723,13 +718,13 @@ static Grid __compute_grid(double min, double max) {
 }
 
 
-static void __draw_grid(DisplayArea * self, bool show_grid, RGBA * color) {
+static void draw_grid(DisplayArea * self, bool show_grid, RGBA * color) {
     Grid grid_x = __compute_grid(self->min_x, self->max_x);
     Grid grid_y = __compute_grid(self->min_y, self->max_y);
     char buffer[16];
     
     for(size_t i = 0; i < grid_x.size + 1; i ++) {
-        double pos = grid_x.min+ (i * grid_x.interval);
+        double pos = grid_x.min + (i * grid_x.interval);
         double offset_x = round(__translate_x(self, pos)); 
 
         snprintf(buffer, 15, "%.0f", pos);
@@ -766,7 +761,7 @@ static void __draw_grid(DisplayArea * self, bool show_grid, RGBA * color) {
 }
 
 
-static void __draw_display_area(DisplayArea * self) {
+static void draw_display_area(DisplayArea * self) {
     __draw_rectangle(self->plot, self->padding.left, self->padding.bottom, self->disp_area_width, self->disp_area_height, 1, &RGBA_Black);
 
 	/*
@@ -786,10 +781,9 @@ static void __draw_display_area(DisplayArea * self) {
 }
 
 
-Plot * scatter_plot_draw(size_t size, double * xs, double * ys) {
+Plot * scatter_plot_draw(const vector * xs, const vector * ys) {
     ScatterPlot_Series serie = {
         .line_type = Plot_LineType_Solid
-        , .size = size
         , .legenda = "Legenda" 
         , .line_thickness = 1
         , .xs = xs
@@ -822,22 +816,33 @@ typedef struct {
 
 
 static inline void __draw_scatter_serie(DisplayArea * self, ScatterPlot_Series * serie) {
-	double x0 = __translate_x(self, serie->xs[0]);
-	double y0 = __translate_y(self, serie->ys[0]);
+    vector_reset_iterator(serie->xs);
+    vector_reset_iterator(serie->ys);
 
-    for(size_t i = 1; i < serie->size; i++) {
-		double x1 = __translate_x(self, serie->xs[i]);
-		double y1 = __translate_y(self, serie->ys[i]) + self->y_offset;
+	double * x0 = vector_next(serie->xs);
+	double * y0 = vector_next(serie->ys);
 
-        __draw_curve(self->plot, x0, y0, x1, y1, serie->line_thickness, &serie->color);
+    assert(x0 != NULL);
+    assert(y0 != NULL);
 
-		x0 = x1;
-		y0 = y1;
+    double px0 = __translate_x(self, *x0);
+    double py0 =  __translate_y(self, *y0);
+
+    for(double * x1 = vector_next(serie->xs), *y1 = vector_next(serie->ys)
+            ; x1 != NULL && y1 != NULL
+            ; x1 = vector_next(serie->xs), y1 = vector_next(serie->ys)) {
+		double px1 = __translate_x(self, *x1);
+		double py1 = __translate_y(self, *y1) + self->y_offset;
+
+        __draw_curve(self->plot, px0, py0, px1, py1, serie->line_thickness, &serie->color);
+
+		px0 = px1;
+		py0 = py1;
     }
 }
 
 
-static void __draw_scatter_plot(ScatterPlot * self) {
+static void draw_scatter_plot(ScatterPlot * self) {
     double legenda_width = 0;
     double legenda_height = self->serie_size * ((CHAR_HEIGHT + SPACE_WIDTH) + CHAR_HEIGHT / 2);
 
@@ -880,7 +885,7 @@ static void __draw_scatter_plot(ScatterPlot * self) {
 }
 
 
-static inline DisplayArea __scater_plot_init(ScatterPlot_Settings * settings) {
+static inline DisplayArea scater_plot_display_area(ScatterPlot_Settings * settings) {
     DisplayArea display;
 
     display.plot = __plot_new(settings->width, settings->height, &RGBA_White);
@@ -905,16 +910,16 @@ static inline DisplayArea __scater_plot_init(ScatterPlot_Settings * settings) {
     display.y_label = settings->y_label;
     display.title = settings->title;
 
-	double chart_x_min = __minimum(settings->serie[0]->size, settings->serie[0]->xs);
-	double chart_x_max = __maximum(settings->serie[0]->size, settings->serie[0]->xs);
-	double chart_y_min = __minimum(settings->serie[0]->size, settings->serie[0]->ys);
-	double chart_y_max = __maximum(settings->serie[0]->size, settings->serie[0]->ys);
+	double chart_x_min = vector_filter(settings->serie[0]->xs, fmin);
+	double chart_x_max = vector_filter(settings->serie[0]->xs, fmax);
+	double chart_y_min = vector_filter(settings->serie[0]->ys, fmin);
+	double chart_y_max = vector_filter(settings->serie[0]->ys, fmax);
 
 	for(size_t i = 1; i < settings->serie_size; i++) {
-		chart_x_min = fmin(chart_x_min, __minimum(settings->serie[i]->size, settings->serie[i]->xs));
-		chart_x_max = fmax(chart_x_max, __maximum(settings->serie[i]->size, settings->serie[i]->xs));
-		chart_y_min = fmin(chart_y_min, __minimum(settings->serie[i]->size, settings->serie[i]->ys));
-		chart_y_max = fmax(chart_y_max, __maximum(settings->serie[i]->size, settings->serie[i]->ys));
+		chart_x_min = fmin(chart_x_min, vector_filter(settings->serie[i]->xs, fmin));
+		chart_x_max = fmax(chart_x_max, vector_filter(settings->serie[i]->xs, fmax));
+		chart_y_min = fmin(chart_y_min, vector_filter(settings->serie[i]->ys, fmin));
+		chart_y_max = fmax(chart_y_max, vector_filter(settings->serie[i]->ys, fmax)); 
 	}
 
     double chart_width = chart_x_max - chart_x_min;
@@ -936,14 +941,14 @@ static inline DisplayArea __scater_plot_init(ScatterPlot_Settings * settings) {
 
 Plot * scatter_plot_draw_from_settings(ScatterPlot_Settings * settings) {
     ScatterPlot scatter_plot = {
-        .display = __scater_plot_init(settings)
+        .display = scater_plot_display_area(settings)
         , .serie_size = settings->serie_size
         , .serie = settings->serie};
 
-    __draw_display_area(&scatter_plot.display);
-    __draw_grid(&scatter_plot.display, settings->show_grid, &settings->grid_color);
+    draw_display_area(&scatter_plot.display);
+    draw_grid(&scatter_plot.display, settings->show_grid, &settings->grid_color);
 
-    __draw_scatter_plot(&scatter_plot);
+    draw_scatter_plot(&scatter_plot);
 
     return scatter_plot.display.plot;   
 }
@@ -956,7 +961,34 @@ void plot_delete(Plot * self) {
 }
 
 
+static void range_reset(Range * self) {
+    self->iterator = self->start;
+}
 
+
+static double * range_next(Range * self) {
+    if(self->iterator < self->end) {
+        self->value = self->iterator;
+        self->iterator += self->step;
+        return &self->value;
+    } else {
+        return NULL;
+    }
+}
+
+
+Range range(double start, double end, double step) {
+    return (Range) {
+        .vector = {
+            .reset_iterator = (void(*)(const vector*)) range_reset
+            , .next = (void*(*)(const vector*)) range_next
+        }
+        , .start = start
+        , .end = end
+        , .step = step
+        , .iterator = start
+    };
+}
 
 
 

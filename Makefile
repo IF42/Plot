@@ -1,7 +1,11 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -Ofast 
-LIBS = $$(pkg-config --libs openssl) -lm -lthr -ljson 
-
+LIBS += $$(pkg-config --libs openssl) 
+LIBS += -lm
+LIBS += -lthr 
+LIBS += -ljson 
+LIBS += -lcca
+LIBS += -lalloc
 
 TARGET = libplot.a
 CACHE = .cache
