@@ -669,66 +669,45 @@ size_t __get_n_positions(double chart_min, double chart_max, double interval) {
 }
 
 
-typedef struct {
-    double interval;
-    double min;
-    double max;   
-    size_t size;
-}Grid;
 
 
-static Grid __compute_grid(double min, double max) {
-    Grid grid;
+static double grid_step(size_t grid_lines, double min, double max) {
+    double rough_step = (max - min) / (grid_lines - 1);
+	double exponent = floor(log10(rough_step));  // Zjisti řád kroku
+	double base = pow(10, exponent);             // Základ (např. 10^x)
+	double normalized_step = rough_step / base;  // Normalizace kroku na interval (1, 10)
 
+	// Násobky 1, 2, 5, nebo 10
+	if(normalized_step < 1) {
+		normalized_step = 0.5;
+	} else if (normalized_step < 1.5) {
+		normalized_step = 1;
+	} else if (normalized_step < 3) {
+		normalized_step = 2;
+	} else if (normalized_step < 7) {
+		normalized_step = 5;
+	} else {
+		normalized_step = 10;
+	}
 
-    double length = max - min;
-
-    double p = floor(log10(length));
-	grid.interval = pow(10, p);
-
-  	grid.min = ceil(min/grid.interval)*grid.interval;
-  	grid.max = floor(max/grid.interval)*grid.interval;
-  	grid.size = round((grid.max - grid.min)/grid.interval + 1.0);
-
-#if 1
-  if(grid.size <= 3.0){
-    p = floor(log10(length) - 1.0);
-    /* gives 100-10 lines for 100-10 diff */
-    grid.interval = pow(10.0, p);
-    grid.min = ceil(min/grid.interval)*grid.interval;
-    grid.max = floor(max/grid.interval)*grid.interval;
-    grid.size = round((grid.max - grid.min)/grid.interval + 1.0);
-  }else if(grid.size <= 6.0){
-    p = floor(log10(length));
-    grid.interval = pow(10.0, p)/4.0;
-    /* gives 40-5 lines for 100-10 diff */
-    grid.min = ceil(min/grid.interval)*grid.interval;
-    grid.max = floor(max/grid.interval)*grid.interval;
-    grid.size = round((grid.max - grid.min)/grid.interval + 1.0);
-  }else if(grid.size <= 10.0){
-    p = floor(log10(length));
-    grid.interval = pow(10.0, p)/2.0;
-    /* gives 20-3 lines for 100-10 diff */
-    grid.min = ceil(min/grid.interval)*grid.interval;
-    grid.max = floor(max/grid.interval)*grid.interval;
-    grid.size = round((grid.max - grid.min)/grid.interval + 1.0);
-  }
-#endif
-    return grid;
+    return normalized_step * base;
 }
 
 
 static void draw_grid(DisplayArea * self, bool show_grid, RGBA * color) {
-    Grid grid_x = __compute_grid(self->min_x, self->max_x);
-    Grid grid_y = __compute_grid(self->min_y, self->max_y);
-    char buffer[16];
-    
-    for(size_t i = 0; i < grid_x.size + 1; i ++) {
-        double pos = grid_x.min + (i * grid_x.interval);
-        double offset_x = round(__translate_x(self, pos)); 
+    const size_t grid_lines = 10;
 
-        snprintf(buffer, 15, "%.0f", pos);
-        
+    double step_y = grid_step(grid_lines, self->min_y, self->max_y);
+    double step_x = grid_step(grid_lines, self->min_x, self->max_x);
+
+    char buffer[16];
+
+    for(size_t i = 0, size = ceil((self->max_x - self->min_x)/ step_x); i < size; i ++) {
+
+        double pos = self->min_x + (i * step_x);
+        double offset_x = round(__translate_x(self, pos)); 
+		
+        snprintf(buffer, 15, "%.1f", pos);
         if(show_grid == true) {
             if(offset_x != self->padding.left+1 && offset_x != self->plot->width - (self->padding.right - 1)) {
                 if(pos == 0)
@@ -741,11 +720,11 @@ static void draw_grid(DisplayArea * self, bool show_grid, RGBA * color) {
         __draw_text(self->plot, offset_x - __text_width(buffer) / 2, self->padding.bottom - 25, buffer, color);
     }    
 
-    for(size_t i = 0; i < grid_y.size + 1; i ++) {
-        double pos = grid_y.min + (i * grid_y.interval);
+    for(size_t i = 0, size = ceil((self->max_y - self->min_y)/ step_y); i < size; i ++) {
+        double pos = self->min_y + (i * step_y);
         double offset_y = round(__translate_y(self, pos)); 
 
-        snprintf(buffer, 15, "%.0f", pos);
+        snprintf(buffer, 15, "%.2f", pos);
 
         if(show_grid == true) {
             if(offset_y != self->padding.bottom + 1 && offset_y != self->plot->height - (self->padding.top - 1)) {
@@ -922,8 +901,24 @@ static inline DisplayArea scater_plot_display_area(ScatterPlot_Settings * settin
 		chart_y_max = fmax(chart_y_max, vector_filter(settings->serie[i]->ys, fmax)); 
 	}
 
+    assert(chart_x_min != chart_x_max);
+    
+    /*
+     * constant function scale treatment 
+     */
+    if(chart_y_min == chart_y_max) {
+        double padding = 0.1 * fabs(chart_y_max);
+        if (padding == 0){
+            padding = 1.0;
+        }
+        
+        chart_y_min = chart_y_max - padding;
+        chart_y_max = chart_y_max + padding;
+    }
+
     double chart_width = chart_x_max - chart_x_min;
-    double chart_height = chart_y_max - chart_y_min;
+    double chart_height = chart_y_max == chart_y_min ? chart_y_max : chart_y_max - chart_y_min;
+
 
 	display.min_x = chart_x_min;
 	display.min_y = chart_y_min;
@@ -931,6 +926,8 @@ static inline DisplayArea scater_plot_display_area(ScatterPlot_Settings * settin
     display.max_y = chart_y_max;
 
     display.y_offset = 10;
+
+    //printf("%f %f\n", display.min_y, display.max_y);
 
     display.scale_x = (display.disp_area_width - 2) / chart_width;
     display.scale_y = (display.disp_area_height - 2 - (2 * display.y_offset)) / chart_height;
@@ -940,14 +937,16 @@ static inline DisplayArea scater_plot_display_area(ScatterPlot_Settings * settin
 
 
 Plot * scatter_plot_draw_from_settings(ScatterPlot_Settings * settings) {
+    assert(settings->serie_size > 0);
+
     ScatterPlot scatter_plot = {
         .display = scater_plot_display_area(settings)
         , .serie_size = settings->serie_size
-        , .serie = settings->serie};
+        , .serie = settings->serie
+    };
 
     draw_display_area(&scatter_plot.display);
     draw_grid(&scatter_plot.display, settings->show_grid, &settings->grid_color);
-
     draw_scatter_plot(&scatter_plot);
 
     return scatter_plot.display.plot;   
